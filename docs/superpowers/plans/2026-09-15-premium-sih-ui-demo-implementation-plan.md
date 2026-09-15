@@ -245,7 +245,7 @@ git add frontend/src/hooks frontend/src/app/App.tsx
 git commit -m "feat: connect demo controller to risk streams"
 ```
 
-### Task 6: Implement the launcher and above-the-fold console shell
+### Task 6: Implement the launcher and state-aware above-the-fold console shell
 
 **Files:**
 - Create: `frontend/src/components/demo/ScenarioLauncher.tsx`
@@ -261,7 +261,7 @@ git commit -m "feat: connect demo controller to risk streams"
 
 **Interfaces:**
 - Consumes: controller state and actions from Task 5.
-- Produces: launcher-to-console navigation with the five critical information groups visible without scrolling.
+- Produces: launcher-to-console navigation with the five critical information groups visible without scrolling and progressive `CALM`, `THREAT_EMERGING`, `CRITICAL_INTERVENTION`, and `SECONDARY_VERIFICATION` presentation states.
 
 - [ ] **Step 1: Write failing component tests**
 
@@ -275,7 +275,7 @@ Expected: FAIL because the console components are absent.
 
 - [ ] **Step 3: Implement the visual shell**
 
-Use a semantic layout with left context rail, flexible center workspace, right evidence rail, and a compact lower band. Keep each metric in the evidence rail as a row/divider treatment rather than independent floating cards. Build the waveform procedurally from deterministic local data and label it `LIVE AUDIO ANALYSIS`; it must not imply real ML. Use CSS `min-height`/grid constraints and responsive compression so identity, live state, risk, evidence, and protection remain above the fold at both required viewport sizes.
+Use a semantic layout derived from the imported Stitch composition: identity/request context, a flexible center signal workspace, progressive evidence, and a compact lower band. Keep each metric as a row/divider treatment rather than independent floating cards. Render CALM with the waveform and only baseline context; add only the strongest anomaly annotations in THREAT_EMERGING; promote the intervention surface in CRITICAL_INTERVENTION; and promote the verification progression plus three security dimensions in SECONDARY_VERIFICATION. Build the waveform procedurally from deterministic local data and label it `LIVE AUDIO ANALYSIS`; it must not imply real ML. Use CSS `min-height`/grid constraints and responsive compression so identity, live state, risk, evidence, and protection remain above the fold at both required viewport sizes.
 
 - [ ] **Step 4: Run component tests and production build**
 
@@ -290,7 +290,7 @@ git add frontend/src/app frontend/src/components frontend/src/styles
 git commit -m "feat: add premium live security console shell"
 ```
 
-### Task 7: Add evidence explanation, timeline, prevention, and verification flows
+### Task 7: Add progressive evidence, timeline, prevention, and verification flows
 
 **Files:**
 - Create: `frontend/src/components/evidence/ReasonList.tsx`
@@ -304,7 +304,7 @@ git commit -m "feat: add premium live security console shell"
 
 **Interfaces:**
 - Consumes: ordered events and three-state controller output from Task 5.
-- Produces: dynamic reasons, current-call chart, blocked transfer state, four simulated verification methods, and state-preserving resolution.
+- Produces: progressive dynamic reasons, current-call chart, blocked transfer state, four simulated verification methods, and state-preserving resolution that retains CRITICAL voice risk.
 
 - [ ] **Step 1: Write failing verification and rendering tests**
 
@@ -318,7 +318,7 @@ Expected: FAIL because the verification drawer and integrated prevention state a
 
 - [ ] **Step 3: Implement the focused interaction surfaces**
 
-Use Recharts or an equivalent small SVG chart for the current-call timeline, with threshold regions and readable labels. Render reasons as an updating list. Implement OTP, Voice Challenge with phrase `BLUE 47 MANGO`, Verified Callback, and Supervisor Approval through the existing lightweight state reducer; do not add role-management or external workflow infrastructure.
+Use Recharts or an equivalent small SVG chart for the current-call timeline, with threshold regions and readable labels. Render reasons as an updating list whose disclosure follows the imported state sequence. Implement OTP, Voice Challenge with phrase `BLUE 47 MANGO`, Verified Callback, and Supervisor Approval through the existing lightweight state reducer; do not add role-management or external workflow infrastructure. The canonical callback resolution must render `VOICE AUTHENTICITY — CRITICAL`, `IDENTITY — VERIFIED VIA CALLBACK`, and `ACTION — ELIGIBLE TO PROCEED` together.
 
 - [ ] **Step 4: Run component tests and typecheck**
 

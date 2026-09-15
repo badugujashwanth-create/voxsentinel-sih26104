@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "error-container": "#93000a", "surface-container-highest": "#33353a", "secondary-fixed": "#6ffbbe", "inverse-on-surface": "#2e3036", "tertiary": "#ffb95f", "outline": "#869397", "surface-dim": "#111319", "surface-container-lowest": "#0c0e13", "surface-tint": "#4cd7f6", "on-background": "#e2e2e9", "inverse-surface": "#e2e2e9", "surface-variant": "#33353a", "outline-variant": "#3d494c", "on-surface-variant": "#bcc9cd", "background": "#111319", "on-primary-fixed": "#001f26", "surface-container-high": "#282a30", "surface-container-low": "#191b21", "on-secondary-fixed-variant": "#005236", "primary": "#4cd7f6", "on-tertiary-fixed": "#2a1700", "tertiary-fixed": "#ffddb8", "error": "#ffb4ab", "on-error-container": "#ffdad6", "on-surface": "#e2e2e9", "secondary": "#4edea3", "on-secondary": "#003824", "on-secondary-container": "#00311f", "on-secondary-fixed": "#002113", "primary-fixed-dim": "#4cd7f6", "on-primary-fixed-variant": "#004e5c", "on-tertiary-container": "#563400", "surface-bright": "#37393f", "primary-container": "#06b6d4", "surface-container": "#1e1f25", "tertiary-container": "#e79400", "on-tertiary": "#472a00", "on-primary-container": "#00424f", "secondary-container": "#00a572", "on-primary": "#003640", "primary-fixed": "#acedff", "tertiary-fixed-dim": "#ffb95f", "on-error": "#690005", "inverse-primary": "#00687a", "secondary-fixed-dim": "#4edea3", "on-tertiary-fixed-variant": "#653e00", "surface": "#111319" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter-desktop": "1.5rem", "margin": "1rem", "space-xl": "2.5rem", "margin-tablet": "1.5rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "space-2xl": "4rem", "space-md": "1rem", "space-lg": "1.5rem", "gutter": "1rem", "margin-desktop": "2.5rem" }, "fontFamily": { "mono-metric": [ "JetBrains Mono" ], "body-lg": [ "Geist" ], "headline-xl": [ "Geist" ], "headline-xl-mobile": [ "Geist" ], "headline-md": [ "Geist" ], "label-md": [ "JetBrains Mono" ], "label-lg": [ "JetBrains Mono" ], "headline-lg": [ "Geist" ], "headline-lg-mobile": [ "Geist" ], "label-sm": [ "JetBrains Mono" ], "body-md": [ "Geist" ], "body-sm": [ "Geist" ] }, "fontSize": { "mono-metric": [ "26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "body-lg": [ "16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400" } ], "headline-xl": [ "44px", { "lineHeight": "52px", "letterSpacing": "-0.03em", "fontWeight": "600" } ], "headline-xl-mobile": [ "30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "headline-md": [ "22px", { "lineHeight": "30px", "letterSpacing": "-0.015em", "fontWeight": "500" } ], "label-md": [ "11px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" } ], "label-lg": [ "13px", { "lineHeight": "18px", "letterSpacing": "0.02em", "fontWeight": "500" } ], "headline-lg": [ "32px", { "lineHeight": "40px", "letterSpacing": "-0.025em", "fontWeight": "600" } ], "headline-lg-mobile": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "label-sm": [ "10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "400" } ], "body-md": [ "14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" } ], "body-sm": [ "12px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "400" } ] } } } };</script></head><body class="bg-surface-container-lowest font-body-md text-body-md text-on-surface min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container"><header class="fixed top-0 left-0 right-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-14 w-full px-gutter-desktop flex items-center justify-between"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-primary text-[20px]">graphic_eq</span><span class="font-headline-md text-headline-md text-on-surface tracking-tight uppercase">VoxSentinel</span></div><span class="text-outline-variant font-label-sm text-label-sm">/</span><div class="flex items-center gap-space-xs"><span class="px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">Enterprise Voice Shield</span><span class="px-space-xs py-0.5 rounded bg-surface-container-high text-primary font-mono-metric text-label-sm">VX-88914</span></div></div><div class="hidden md:flex items-center gap-space-sm font-label-md text-label-md"><div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container-low"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="text-on-surface uppercase tracking-wider">Incident #VX-88914</span><span class="text-outline">•</span><span class="text-on-surface-variant uppercase tracking-wider">Live Call Monitored</span></div><nav class="flex items-center gap-space-md ml-space-md" data-active-classes="text-primary font-medium"><a aria-current="page" class="transition-colors uppercase tracking-wider text-primary font-medium" data-path="live-telemetry-console" href="#">Live Telemetry</a><a class="text-on-surface-variant hover:text-on-surface transition-colors font-body-sm text-body-sm uppercase tracking-wider" data-path="forensic-harmonic-lab" href="#">Acoustic Lab</a><a class="text-on-surface-variant hover:text-on-surface transition-colors font-body-sm text-body-sm uppercase tracking-wider" data-path="incident-threat-matrix" href="#">Incident Audit</a></nav></div><div class="flex items-center gap-space-md"><div class="hidden lg:flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container-low text-secondary font-label-sm text-label-sm"><span class="material-symbols-outlined text-[14px]">verified_user</span><span class="uppercase tracking-wider">HSM Sealed</span></div><div class="hidden xl:flex items-center gap-space-xs font-mono-metric text-label-sm text-on-surface-variant"><span class="material-symbols-outlined text-[14px] text-outline">schedule</span><span>UTC 14:38:09.102</span></div><div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container text-secondary font-label-sm text-label-sm uppercase"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span><span>Shield Active</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-14 bg-surface-container-lowest min-h-screen"><div class="flex flex-col w-full">
+<section class="w-full px-gutter-desktop py-space-md">
+<div class="w-full bg-surface-container-low rounded-xl shadow-md p-space-md flex flex-col xl:flex-row xl:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-lg flex-wrap sm:flex-nowrap">
+<div class="flex items-center gap-space-sm pr-space-md">
+<div class="relative flex items-center justify-center w-3 h-3">
+<span class="absolute w-full h-full rounded-full bg-secondary opacity-75 animate-ping"></span>
+<span class="relative w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-widest font-mono-metric">LIVE CALL</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-mono-metric text-label-sm text-on-surface-variant">SIP-TLS 24bit/48kHz</span>
+</div>
+<span class="font-mono-metric text-headline-md text-primary font-semibold" id="call-timer">00:04.12s</span>
+</div>
+</div>
+<div class="h-10 w-px bg-surface-container hidden sm:block"></div>
+<div class="flex items-center gap-space-md">
+<div class="relative w-12 h-12 rounded-full overflow-hidden bg-surface-container flex-shrink-0 shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Sophisticated professional corporate portrait of Arjun Mehta, Chief Financial Officer, mature South Asian man in a bespoke navy charcoal tailored suit, soft cinematic studio side-lighting, calm executive presence with deep graphite background tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBf6hmMw4z-B9ikYEjJRo17fAvjc_RrhGRrCY7Kd_MKxcudhlRlpx1BU6xEL3lW3fttE2MJ7oc_eriSNUFTGwwDa4MYP51WJQrPhJ_pfAqunR7IB6Ff-vv5N-_gT3KdDt_J_ADFE6wPmpt5GLtqC2ci0ZNqJ4WkS5nQ7ISzG-JJJFO0J8zwN416diexGMoi-ajiGP4f-bbBXdM6erat5qtnuk8dvGqNEbJlyYVjUhYZAZaOzQzea0e6Eg"/>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold tracking-tight truncate">Arjun Mehta</h2>
+<span class="material-symbols-outlined text-secondary text-[16px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Chief Financial Officer</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xl flex-wrap xl:flex-nowrap justify-between xl:justify-end">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+<span>Authorizing Transfer</span>
+<span class="text-outline-variant">•</span>
+<span class="text-primary font-mono-metric">REF #TR-9902</span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">₹25,00,000</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">INR</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Vendor Settlement Transfer</span>
+</div>
+<div class="h-10 w-px bg-surface-container hidden xl:block"></div>
+<div class="flex items-center gap-space-md bg-surface-container px-space-md py-space-sm rounded-lg shadow-sm">
+<div class="flex flex-col text-right">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest font-mono-metric">RISK</span>
+<div class="flex items-baseline justify-end gap-0.5">
+<span class="font-mono-metric text-mono-metric text-primary">18</span>
+<span class="font-label-sm text-label-sm text-outline font-mono-metric">/100</span>
+</div>
+</div>
+<div class="flex flex-col items-start gap-1">
+<span class="px-space-sm py-0.5 rounded bg-secondary/15 text-secondary font-label-sm text-label-sm uppercase tracking-wider font-semibold">LOW RISK</span>
+<span class="font-mono-metric text-[9px] text-on-surface-variant leading-none">P(SYNTH) &lt; 0.02%</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="w-full px-gutter-desktop">
+<div class="relative w-full h-[540px] bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden flex flex-col">
+<div class="absolute inset-0 opacity-40 pointer-events-none">
+<svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="48" id="grid-matrix" patternunits="userSpaceOnUse" width="48">
+<path class="text-surface-container" d="M 48 0 L 0 0 0 48" fill="none" stroke="currentColor" stroke-width="0.75"></path>
+</pattern>
+</defs>
+<rect fill="url(#grid-matrix)" height="100%" width="100%"></rect>
+</svg>
+</div>
+<div class="absolute inset-0 bg-gradient-to-r from-surface-container-lowest via-transparent to-surface-container-lowest pointer-events-none opacity-60"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-surface-container-lowest/80 via-transparent to-surface-container-lowest/80 pointer-events-none"></div>
+<div class="relative z-10 w-full px-space-md py-space-sm flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center gap-space-xs px-space-sm py-0.5 rounded bg-primary/10 text-primary font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="font-mono-metric uppercase tracking-wider">ACOUSTIC BIOMETRIC STREAM INGEST // NOMINAL VOCAL RESONANCE</span>
+</div>
+<span class="font-mono-metric text-label-sm text-outline hidden sm:inline">FORMANT VECTOR F1-F4 STABLE</span>
+</div>
+<div class="flex items-center gap-space-md font-mono-metric text-label-sm text-on-surface-variant">
+<div class="flex items-center gap-space-xs">
+<span class="text-outline">LATENCY:</span>
+<span class="text-secondary">8.4ms</span>
+</div>
+<div class="hidden md:flex items-center gap-space-xs">
+<span class="text-outline">ENTROPY:</span>
+<span class="text-on-surface">0.892 nat</span>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-space-xs py-0.5 rounded">
+<span class="text-outline">SR:</span>
+<span class="text-primary font-medium">48.0 kHz</span>
+</div>
+</div>
+</div>
+<div class="relative flex-1 w-full overflow-hidden flex items-center justify-center">
+<div class="absolute left-space-md top-0 bottom-0 flex flex-col justify-between py-space-md pointer-events-none z-10 font-mono-metric text-label-sm text-outline opacity-60">
+<div class="flex items-center gap-space-xs"><span>+3 dBFS</span><div class="w-4 h-px bg-surface-container"></div></div>
+<div class="flex items-center gap-space-xs"><span>0 dBFS</span><div class="w-4 h-px bg-primary/40"></div></div>
+<div class="flex items-center gap-space-xs"><span>-12 dBFS</span><div class="w-4 h-px bg-surface-container"></div></div>
+<div class="flex items-center gap-space-xs"><span>-24 dBFS</span><div class="w-4 h-px bg-surface-container"></div></div>
+<div class="flex items-center gap-space-xs"><span>-48 dBFS</span><div class="w-4 h-px bg-surface-container"></div></div>
+</div>
+<div class="absolute right-space-md top-0 bottom-0 flex flex-col justify-between py-space-md pointer-events-none z-10 font-mono-metric text-label-sm text-outline opacity-60 text-right">
+<div class="flex items-center justify-end gap-space-xs"><div class="w-4 h-px bg-surface-container"></div><span>8.0 kHz</span></div>
+<div class="flex items-center justify-end gap-space-xs"><div class="w-4 h-px bg-surface-container"></div><span>3.4 kHz (F3)</span></div>
+<div class="flex items-center justify-end gap-space-xs"><div class="w-4 h-px bg-surface-container"></div><span>1.8 kHz (F2)</span></div>
+<div class="flex items-center justify-end gap-space-xs"><div class="w-4 h-px bg-surface-container"></div><span>500 Hz (F1)</span></div>
+<div class="flex items-center justify-end gap-space-xs"><div class="w-4 h-px bg-surface-container"></div><span>80 Hz (Fund.)</span></div>
+</div>
+<svg class="w-full h-full absolute inset-0 preserve-3d" preserveaspectratio="none" viewbox="0 0 1600 500">
+<defs>
+<lineargradient id="gradient-resonance-cyan" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#06b6d4" stop-opacity="0.22"></stop>
+<stop offset="50%" stop-color="#4cd7f6" stop-opacity="0.08"></stop>
+<stop offset="100%" stop-color="#06b6d4" stop-opacity="0.00"></stop>
+</lineargradient>
+<lineargradient id="gradient-resonance-secondary" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#4edea3" stop-opacity="0.18"></stop>
+<stop offset="60%" stop-color="#00a572" stop-opacity="0.05"></stop>
+<stop offset="100%" stop-color="#4edea3" stop-opacity="0.00"></stop>
+</lineargradient>
+<filter height="140%" id="soft-glow" width="140%" x="-20%" y="-20%">
+<fegaussianblur result="blur" stddeviation="3.5"></fegaussianblur>
+<fecomposite in="SourceGraphic" in2="blur" operator="over"></fecomposite>
+</filter>
+</defs>
+<line stroke="#1e1f25" stroke-dasharray="2 4" stroke-width="1" x1="80" x2="1520" y1="250" y2="250"></line>
+<line stroke="#191b21" stroke-width="1" x1="80" x2="1520" y1="160" y2="160"></line>
+<line stroke="#191b21" stroke-width="1" x1="80" x2="1520" y1="340" y2="340"></line>
+<path d="M 120 250 
+                   C 200 230, 240 200, 320 215 
+                   C 400 230, 440 280, 520 270 
+                   C 600 260, 680 180, 760 190 
+                   C 840 200, 900 290, 980 275 
+                   C 1060 260, 1140 210, 1220 220 
+                   C 1300 230, 1380 265, 1460 250 
+                   L 1460 380 
+                   C 1380 395, 1300 360, 1220 350 
+                   C 1140 340, 1060 390, 980 375 
+                   C 900 360, 840 270, 760 280 
+                   C 680 290, 600 370, 520 360 
+                   C 440 350, 400 300, 320 315 
+                   C 240 330, 200 300, 120 250 Z" fill="url(#gradient-resonance-cyan)"></path>
+<path d="M 120 250 
+                   C 220 240, 280 220, 360 228 
+                   C 440 236, 500 270, 580 262 
+                   C 660 254, 720 205, 800 212 
+                   C 880 219, 940 278, 1020 268 
+                   C 1100 258, 1180 225, 1260 232 
+                   C 1340 239, 1400 258, 1460 250 
+                   L 1460 320 
+                   C 1400 328, 1340 309, 1260 302 
+                   C 1180 295, 1100 328, 1020 318 
+                   C 940 308, 880 249, 800 242 
+                   C 720 235, 660 284, 580 276 
+                   C 500 268, 440 234, 360 242 
+                   C 280 250, 220 270, 120 250 Z" fill="url(#gradient-resonance-secondary)"></path>
+<path d="M 100 250 
+                   Q 150 245, 180 235
+                   T 240 220
+                   T 310 260
+                   T 380 240
+                   T 450 180
+                   T 520 290
+                   T 590 230
+                   T 660 170
+                   T 730 310
+                   T 800 220
+                   T 870 190
+                   T 940 285
+                   T 1010 240
+                   T 1080 185
+                   T 1150 295
+                   T 1220 230
+                   T 1290 210
+                   T 1360 270
+                   T 1440 245
+                   T 1480 250" fill="none" filter="url(#soft-glow)" stroke="#06b6d4" stroke-linecap="round" stroke-width="2.2"></path>
+<path d="M 100 250 
+                   Q 140 252, 190 242
+                   T 260 212
+                   T 330 275
+                   T 400 225
+                   T 470 165
+                   T 540 305
+                   T 610 215
+                   T 680 155
+                   T 750 325
+                   T 820 205
+                   T 890 175
+                   T 960 300
+                   T 1030 225
+                   T 1100 170
+                   T 1170 310
+                   T 1240 215
+                   T 1310 195
+                   T 1380 285
+                   T 1450 242
+                   T 1480 250" fill="none" opacity="0.85" stroke="#4edea3" stroke-dasharray="6 3" stroke-width="1.2"></path>
+<line opacity="0.9" stroke="#4cd7f6" stroke-dasharray="4 4" stroke-width="1.5" x1="1240" x2="1240" y1="80" y2="420"></line>
+<circle cx="1240" cy="215" fill="#4cd7f6" r="4"></circle>
+<circle class="animate-ping" cx="1240" cy="215" fill="none" opacity="0.75" r="8" stroke="#4cd7f6" stroke-width="1"></circle>
+</svg>
+<div class="absolute top-space-md left-1/2 -translate-x-1/2 flex items-center gap-space-md px-space-md py-1.5 rounded-full bg-surface-container-high/90 backdrop-blur-md shadow-sm pointer-events-none">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm text-on-surface uppercase tracking-wider font-mono-metric">HARMONIC RATIO: 1.48 (NATURAL)</span>
+</div>
+<span class="text-outline font-label-sm text-label-sm">|</span>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono-metric">SYNTHETIC PHASE DRIFT: 0.003%</span>
+</div>
+<span class="text-outline font-label-sm text-label-sm">|</span>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-sm text-label-sm text-secondary font-mono-metric uppercase font-semibold">VOICEPRINT VERIFIED</span>
+</div>
+</div>
+</div>
+<div class="w-full bg-surface-container-high/60 backdrop-blur-md px-space-md py-space-xs flex items-center justify-between font-mono-metric text-label-sm text-on-surface-variant">
+<div class="flex items-center gap-space-md">
+<span class="text-primary font-medium">SPECTROGRAM 0.0 – 8.0 kHz</span>
+<span class="text-outline hidden sm:inline">•</span>
+<span class="hidden sm:inline">GLOTTAL PULSE DETECTION: CONTINUOUS</span>
+<span class="text-outline hidden md:inline">•</span>
+<span class="hidden md:inline">PHONEME: /v/ /o/ /k/ /s/</span>
+</div>
+<div class="flex items-center gap-space-sm text-secondary">
+<span class="material-symbols-outlined text-[14px]">format_image_left</span>
+<span class="uppercase tracking-wider">Zero Synthetic Artifacts</span>
+</div>
+</div>
+</div>
+</section>
+<section class="w-full px-gutter-desktop py-space-md">
+<div class="w-full bg-surface-container-low rounded-xl shadow-sm p-space-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-outline text-[18px]">graphic_eq</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider font-mono-metric">CHRONOLOGICAL ACOUSTIC AUDIT TRAIL</span>
+</div>
+<div class="flex items-center gap-space-md font-mono-metric text-label-sm">
+<span class="text-outline">STREAM DURATION:</span>
+<span class="text-on-surface font-semibold">00:04.120</span>
+</div>
+</div>
+<div class="relative w-full pt-4 pb-2">
+<div class="relative w-full h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 68%;"></div>
+</div>
+<div class="absolute top-1 left-[68%] -translate-x-1/2 flex flex-col items-center">
+<div class="w-3 h-3 rounded-full bg-primary shadow-sm ring-4 ring-primary/20"></div>
+<div class="mt-1 px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-mono-metric text-[9px]">
+            00:04.12
+          </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md mt-6 pt-space-xs">
+<div class="flex items-start gap-space-sm group">
+<div class="w-2 h-2 rounded-full bg-secondary mt-1.5 flex-shrink-0"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-mono-metric text-label-sm text-primary font-semibold">00:00.00</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">GATEWAY PASS</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-medium">Call Connected</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">PBX Gateway EAL6+ Mutual Handshake Verified</span>
+</div>
+</div>
+<div class="flex items-start gap-space-sm group">
+<div class="w-2 h-2 rounded-full bg-secondary mt-1.5 flex-shrink-0"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-mono-metric text-label-sm text-primary font-semibold">00:02.34</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">PCM INGEST</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-medium">Inbound Stream Initialized</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Dual-channel RTP telemetry locked at &lt;9ms jitter</span>
+</div>
+</div>
+<div class="flex items-start gap-space-sm group">
+<div class="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0 animate-pulse"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-mono-metric text-label-sm text-primary font-semibold">00:04.12</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-wider">ANALYSIS READY</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-medium">Baseline Voiceprint Formed</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Vocal tract resonance concordant with Arjun Mehta model</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row items-center justify-between gap-space-sm pt-space-xs bg-surface-container/50 px-space-md py-space-sm rounded-lg">
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">lock</span>
+<span>Cryptographic Session Hash: <span class="text-on-surface font-mono-metric">8b49e8...7fa1</span></span>
+</div>
+<span class="text-outline-variant hidden sm:inline">•</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant hidden md:inline font-mono-metric">AES-GCM-256</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-1.5 rounded bg-surface-container hover:bg-surface-container-high transition-colors font-mono-metric text-label-sm text-on-surface flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-[14px]">file_download</span>
+<span>Export Acoustic Telemetry</span>
+</button>
+<button class="px-space-md py-1.5 rounded bg-primary hover:bg-primary-fixed transition-colors font-body-md text-body-sm text-on-primary font-medium flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-[14px]">fingerprint</span>
+<span>Verify Identity</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<script>
+  (() => {
+    let seconds = 4;
+    let milliseconds = 12;
+    const timerElement = document.getElementById('call-timer');
+
+    if (timerElement) {
+      setInterval(() => {
+        milliseconds += 3;
+        if (milliseconds >= 100) {
+          milliseconds = 0;
+          seconds += 1;
+        }
+        const formattedSec = String(seconds).padStart(2, '0');
+        const formattedMs = String(milliseconds).padStart(2, '0');
+        timerElement.textContent = `00:${formattedSec}.${formattedMs}s`;
+      }, 30);
+    }
+  })();
+</script></main><footer class="w-full bg-surface-container-lowest py-space-md"><div class="w-full px-gutter-desktop flex flex-col md:flex-row items-center justify-between gap-space-sm font-label-sm text-label-sm text-on-surface-variant"><div class="flex items-center gap-space-sm"><span class="text-outline">VoxSentinel Biometric Core v4.9.1-SEC</span><span>•</span><span class="text-secondary">Realtime Neural Verification Operational</span></div><div class="flex items-center gap-space-md"><span class="text-outline">Sub-millisecond Latency Pipeline &lt;14ms</span><span class="text-outline">TLS 1.3 / EAL6+ Certified Session</span></div></div></footer></body></html>

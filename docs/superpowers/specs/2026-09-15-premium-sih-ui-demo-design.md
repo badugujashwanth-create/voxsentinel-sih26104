@@ -6,7 +6,7 @@ Design specification for review. This document describes the frontend-only imple
 
 ## Goal
 
-Build one polished, deterministic VoxSentinel security console that lets a judge understand a live sensitive call, continuous voice analysis, escalating impersonation risk, explainable evidence, protected action blocking, and secondary-channel resolution within one uninterrupted demo flow.
+Build one polished, deterministic VoxSentinel security console that lets a judge understand a live sensitive call through four progressive investigation states: calm monitoring, emerging threat, critical intervention, and secondary-channel resolution.
 
 ## Scope and non-goals
 
@@ -72,13 +72,15 @@ Secondary verification must never rewrite the voice-risk conclusion. After a CRI
 
 ## Live Security Console
 
-The console uses a compact top bar plus a three-region workspace:
+The console uses a compact top bar plus a three-region workspace whose disclosure level changes with the investigation state:
 
 - Left identity/context rail: claimed caller, role, call status, scenario, elapsed time, and sensitive request such as `₹25,00,000 vendor transfer`.
 - Center risk workspace: dominant animated `Impersonation Risk` score, risk label, live procedural waveform labelled `LIVE AUDIO ANALYSIS`, current incident statement, and the integrated protection state.
 - Right evidence rail: Synthetic Voice, Speaker Match, Prosody Anomaly, Replay Risk, and Contextual Risk. Each metric has a value, label, and short interpretation; bars are not the only meaning-bearing element.
 
-The lower portion contains a compact current-call risk timeline with 0–100 scale and LOW/MEDIUM/HIGH/CRITICAL threshold bands, plus a dynamic explanation section headed `WHY THIS CALL WAS FLAGGED`. The critical action state stays visually adjacent to the main risk workspace and becomes unmistakable at `BLOCK_ACTION`.
+In CALM, the dominant live signal and caller/request context lead while deep forensic detail remains hidden. In THREAT EMERGING, the same composition gains a small number of waveform annotations and the strongest supporting evidence. In CRITICAL, the console promotes the intervention decision, reasons, and next action. In SECONDARY VERIFICATION, the console promotes the callback progression and the three separate security dimensions while preserving the original voice-risk evidence.
+
+The lower portion contains a compact current-call risk timeline with 0–100 scale and LOW/MEDIUM/HIGH/CRITICAL threshold bands, plus a dynamic explanation section headed `WHY THIS CALL WAS FLAGGED`. The timeline and secondary telemetry compress before claimed identity/request, live state, risk, major evidence, or current action move below the fold. The critical action state stays visually adjacent to the main risk workspace and becomes unmistakable at `BLOCK_ACTION`.
 
 ## Risk levels and event contract
 
@@ -164,7 +166,7 @@ interface RiskStreamSource {
 
 ## Scenario fixtures
 
-The source emits fixed, repeatable risk progressions:
+The source emits fixed, repeatable risk progressions and the console derives a presentation state from them:
 
 | Scenario | Risk progression | Expected final state |
 | --- | --- | --- |
@@ -172,6 +174,8 @@ The source emits fixed, repeatable risk progressions:
 | `HUMAN_IMPOSTOR` | `18, 26, 39, 54, 67, 76` | HIGH, identity mismatch emphasized |
 | `AI_CLONE` | `20, 31, 46, 63, 78, 88` | CRITICAL, synthetic evidence emphasized |
 | `HIGH_VALUE_TRANSFER_ATTACK` | `18, 27, 43, 61, 79, 92` | CRITICAL, `BLOCK_ACTION` |
+
+Presentation states are `CALM` at the initial low-risk event, `THREAT_EMERGING` once anomaly evidence is introduced, `CRITICAL_INTERVENTION` at critical action blocking, and `SECONDARY_VERIFICATION` while a verification flow is active or resolved. The state changes disclosure and emphasis without replacing the entire page or changing the event contract.
 
 Each fixture defines caller context, request, evidence scores, reasons, timestamps, risk levels, and recommended actions. The high-value transfer story is a senior executive impersonation requesting `₹25,00,000` urgently. Its reason list evolves from monitoring context to synthetic speech characteristics, speaker identity mismatch, and high-value transfer context.
 
@@ -192,7 +196,7 @@ All four lightweight simulated methods are available:
 - Verified Callback: requested → in progress → verified.
 - Supervisor Approval: awaiting → approved/rejected.
 
-The canonical transfer flow opens Verified Callback. A success produces the secondary-channel language above and makes the action policy-eligible; it does not relabel the voice as genuine. A failure keeps the action blocked and says `VERIFICATION FAILED`.
+The canonical transfer flow opens Verified Callback. A success produces the secondary-channel language above and makes the action policy-eligible; it does not relabel the voice as genuine. A failure keeps the action blocked and says `VERIFICATION FAILED`. The final screen must visibly retain `VOICE AUTHENTICITY — CRITICAL`, `IDENTITY — VERIFIED VIA CALLBACK`, and `ACTION — ELIGIBLE TO PROCEED` as separate values.
 
 ## Motion and accessibility
 
@@ -208,6 +212,7 @@ The implementation is accepted only when:
 - browser inspection shows the five critical information groups above the fold at 1920×1080 and 1366×768;
 - no browser console errors, clipping, broken chart labels, or backend/ML scope changes are present;
 - the UI visibly retains CRITICAL voice evidence after secondary verification.
+- the four imported visual states read as one progressive sequence: CALM → THREAT EMERGING → CRITICAL INTERVENTION → SECONDARY VERIFICATION.
 
 ## Environment and limitations
 
