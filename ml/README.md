@@ -22,6 +22,7 @@ Voice spoof / deepfake detection for VoxSentinel.
 | `spoof/detector.py` | `SpoofDetector` interface and the `SpoofResult` contract |
 | `spoof/aasist.py` | `AASISTSpoofDetector` - the real model adapter |
 | `audio/preprocessing.py` | decode, downmix, resample, and validate audio |
+| `audio/fingerprint.py` | canonical PCM envelope used to verify regenerated audio |
 | `audio/chunker.py` | streaming windowing (from ROHAN-001) |
 | `scripts/setup_aasist.py` | fetch and SHA-256 verify the model + checkpoint |
 | `scripts/detect.py` | score one or more files |
@@ -272,11 +273,25 @@ python ml/scripts/evaluate.py --per-sample
 python ml/scripts/prepare_eval_set.py --verify-only
 ```
 
-`prepare_eval_set.py` fetches LibriSpeech dev-clean and the Piper voice, copies
-each genuine utterance named in the manifest, re-synthesises each synthetic
-sample from its recorded speaker/text/parameters, and checks every result
-against the manifest hash. It exits non-zero if anything differs, so a silent
-drift is not possible.
+`prepare_eval_set.py` fetches LibriSpeech dev-clean and the Piper voice, checks
+the voice model and config hashes, copies each genuine utterance named in the
+manifest, re-synthesises each synthetic sample from its recorded
+speaker/text/parameters, and verifies every result. It exits non-zero if
+anything fails, so silent drift is not possible.
+
+```
+Verifying generator inputs:
+  verified voice model: en_US-libritts_r-medium.onnx
+  verified voice config: en_US-libritts_r-medium.onnx.json
+
+All 80 samples verified against the manifest.
+  LibriSpeech  40/40  strict SHA-256
+  Piper        40/40  tolerant canonical PCM (worst 0.000000 dB of 0.01 dB allowed)
+  Total        80/80
+```
+
+Genuine and synthetic samples are held to different standards, for reasons
+measured and documented below.
 
 You can also re-derive the whole summary from the committed predictions alone,
 with no model, no audio, and no downloads:
@@ -316,24 +331,107 @@ real-versus-synthetic rather than also changing recording conditions.
 Piper is a data-generation tool. Nothing under `ml/spoof/` or `ml/audio/`
 imports it, and the detector does not need it at runtime.
 
-### A note on determinism
+### Reproducibility: why Piper is not byte-identical
 
-Piper's default `noise_scale` and `noise_w_scale` sample inside the ONNX graph,
-so synthesising the same sentence twice produces **different audio every time**.
-Seeding `numpy` does not help, because the randomness is not in numpy. Both
-scales are therefore pinned to `0.0` in the manifest, which makes synthesis
-bit-reproducible and lets the manifest carry a meaningful SHA-256 per sample.
+An independent reconstruction reproduced LibriSpeech 40/40 but every one of the
+40 Piper WAVs differed. Root cause, established by measurement:
 
-AASIST inference itself is fully deterministic: the same file scores identically
-across repeated runs to all printed digits.
+1. **Piper synthesis is float32 inference in ONNX Runtime, and its result
+   depends on the execution plan, not only on the inputs.** Demonstrated on one
+   machine with everything else held constant: changing only the ONNX
+   graph-optimisation level changes the waveform.
 
-This pinning is why the numbers below differ slightly from the first run
-reported in this PR, which used Piper's stochastic defaults. That run scored
-TP 33 / FN 7 (accuracy 0.8625, EER 0.1000); the reproducible set scores
-TP 31 / FN 9. The genuine half is **identical** across both runs (FP 4, TN 36),
-confirming that only the synthetic generation changed. Zero-noise synthesis is
-slightly flatter and, on this evidence, marginally harder for the detector.
-Exact reproducibility is worth that difference.
+   | optimisation level | synthetic_000 WAV SHA-256 | bytes |
+   | --- | --- | --- |
+   | `all` | `9d56ab6c…` | 212012 |
+   | `extended` | `9d56ab6c…` | 212012 |
+   | `basic` | `91da31ac…` | 212012 |
+   | `disabled` | `4a1209a8…` | 212012 |
+
+   Execution plans also vary with ONNX Runtime version, build flags, and CPU
+   kernel dispatch — which is exactly what differs between machines.
+
+2. **`normalize_audio=True` (Piper's upstream default) couples any local
+   difference into every sample.** Piper divides the waveform by its peak, so a
+   single-ULP difference in that peak rescales everything: measured, 26,671 of
+   105,984 int16 samples shift.
+
+3. **int16 quantisation then turns those sub-LSB differences into different
+   bytes**, and SHA-256 is all-or-nothing.
+
+Across the 40 samples and all four optimisation modes: 143,901 int16 samples
+differ, by at most 17 LSB — about −66 dBFS, inaudible. The audio is the same
+audio. Only the bytes differ.
+
+Piper's `normalize_audio` is left at its upstream default. Changing it would
+create a different evaluation dataset.
+
+### The canonical PCM check
+
+Per-sample quantisation does not fix this at any tolerance, because a sample
+sitting near a bucket boundary flips buckets however coarse the buckets are.
+Measured across all 40 samples and 4 modes:
+
+| canonicalisation | stable? |
+| --- | --- |
+| drop low k bits, k ≤ 9 (up to ±256 LSB) | no — 40/40 samples unstable |
+| drop low 10 bits (±512 LSB, 1.6% of full scale) | no — 37/40 unstable |
+| frame-RMS dB, frame 4096, 2 decimals | yes — 0/40 unstable |
+
+Stability is not even monotonic in the bucket size, which is why hash equality
+on quantised values is the wrong instrument. The gate is therefore a **numeric
+comparison of a coarse energy envelope**: frame RMS in dBFS over 4096-sample
+frames (~186 ms), floored at −90 dBFS, compared with a tolerance.
+
+**Tolerance chosen from measurement, not preference:**
+
+| quantity | value |
+| --- | --- |
+| execution-plan noise floor (40 samples × 6 mode pairs, worst case) | **0.000120 dB** |
+| 0.5% amplitude change | 0.0430 dB |
+| 1% amplitude change | 0.0861 dB |
+| one 186 ms frame zeroed | 77.2417 dB |
+| different speaker, same text | 10.1153 dB |
+| **`CANONICAL_TOLERANCE_DB`** | **0.01 dB** |
+
+That sits ~83× above the observed noise and ~3.6× below the smallest corruption
+tested. Verified against all four optimisation modes:
+
+```
+all        Piper 40/40   worst 0.000000 dB
+extended   Piper 40/40   worst 0.000000 dB
+basic      Piper 40/40   worst 0.000084 dB
+disabled   Piper 40/40   worst 0.000097 dB
+```
+
+The worst case uses 1% of the budget. Under the previous byte-identical gate,
+`basic` and `disabled` failed 40/40.
+
+The envelope is a ~186 ms-resolution energy summary, around 25 numbers per
+sample. Speech cannot be reconstructed from it, which is why it is safe to
+commit when the audio is not.
+
+### What each class is verified against
+
+| Class | Gate |
+| --- | --- |
+| LibriSpeech (40) | **strict SHA-256** — these are byte copies of fixed corpus files, so bit equality is a sound expectation |
+| Piper (40) | **tolerant canonical PCM** — exact sample rate, channel count and sample count; matching voice model and config hashes; envelope within 0.01 dB |
+
+For Piper samples the full-file SHA-256 stays in the manifest as
+**informational only**. It records that the authoring machine reproduces
+bit-for-bit; it is not the cross-machine pass/fail gate.
+
+The voice model **and** its config are hash-verified on every preparation run,
+not only when `--download` is used, because a different voice or config silently
+produces different speech.
+
+`onnxruntime` is pinned explicitly. Piper declares `onnxruntime<2,>=1`, which
+would otherwise leave the inference runtime floating.
+
+The manifest records the authoring environment — Python, Piper, ONNX Runtime,
+numpy, soundfile, OS/arch, execution providers, and CPU SIMD flags — so an
+environment difference is visible rather than inferred.
 
 ### Measured results
 
