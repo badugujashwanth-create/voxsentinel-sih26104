@@ -25,7 +25,10 @@ from ml.audio import preprocessing
 class SpoofResult:
     """One spoof-detection verdict for one piece of audio."""
 
-    #: Probability in 0..1 that the audio is synthetic/spoofed.
+    #: UNCALIBRATED model score in 0..1, higher meaning more synthetic-like.
+    #: This is a softmax output, not a calibrated probability: 0.90 means "well
+    #: above this model's spoof decision boundary", NOT "90% likely to be fake".
+    #: Named to match the frontend's LiveRiskEvent field for eventual wiring.
     synthetic_probability: float
     #: Model's raw bona-fide score (higher means more human). Useful for
     #: threshold tuning and for comparing against published EER operating points.

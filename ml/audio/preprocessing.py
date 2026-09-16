@@ -99,6 +99,11 @@ def prepare(samples: np.ndarray, sample_rate: int, target_rate: int = TARGET_SAM
     if not np.all(np.isfinite(mono)):
         raise MalformedAudioError("audio contains NaN or infinite samples")
 
+    # Judge clipping on the source signal. Polyphase resampling overshoots the
+    # original peak slightly (Gibbs ringing), so checking after resampling
+    # reports clipping on perfectly clean audio.
+    source_peak = float(np.max(np.abs(mono)))
+
     resampled, resample_warnings = resample(mono, sample_rate, target_rate)
     warnings.extend(resample_warnings)
 
@@ -112,8 +117,8 @@ def prepare(samples: np.ndarray, sample_rate: int, target_rate: int = TARGET_SAM
     rms = float(np.sqrt(np.mean(np.square(resampled))))
     if rms < LOW_LEVEL_RMS_THRESHOLD:
         warnings.append(f"very low signal level (RMS {rms:.2e}); score may be unreliable")
-    if peak > 1.0:
-        warnings.append(f"samples exceed unit scale (peak {peak:.2f}); audio may be clipped")
+    if source_peak > 1.0:
+        warnings.append(f"source samples exceed unit scale (peak {source_peak:.2f}); audio may be clipped")
 
     return PreparedAudio(samples=resampled, sample_rate=target_rate, duration_seconds=duration, warnings=tuple(warnings))
 

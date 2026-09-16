@@ -21,14 +21,17 @@ from ml.audio.preprocessing import AudioValidationError  # noqa: E402
 from ml.spoof.aasist import AASISTSpoofDetector, ModelNotInstalledError  # noqa: E402
 from ml.spoof.detector import SpoofResult  # noqa: E402
 
-DISCLAIMER = "Spoof-detection score only - not an identity or fraud decision."
+DISCLAIMER = (
+    "UNCALIBRATED spoof-model score. Not a probability that the audio is fake, not an\n"
+    "identity decision, not a fraud decision, and not a VoxSentinel risk score."
+)
 
 
 def render(path: Path, result: SpoofResult) -> str:
     """Formats one result for a human reader."""
     lines = [
         f"File:                  {path}",
-        f"Synthetic probability: {result.synthetic_probability:.4f}",
+        f"Spoof score:           {result.synthetic_probability:.4f}   (uncalibrated, 0-1; higher = more synthetic-like)",
         f"Bona-fide score:       {result.bonafide_score:+.4f}  (raw model output, higher = more human)",
         f"Model:                 {result.model_id}",
         f"Audio duration:        {result.audio_duration_seconds:.2f}s at {result.sample_rate} Hz",

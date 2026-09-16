@@ -11,6 +11,7 @@ Install the model first:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,8 @@ from ml.spoof.aasist import DEFAULT_VENDOR_DIR, AASISTSpoofDetector, ModelNotIns
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EVAL_DIR = REPO_ROOT / "ml" / "data" / "eval"
+MANIFEST = REPO_ROOT / "ml" / "evaluation" / "eval_manifest.json"
+SUBDIR = {"bonafide": "genuine", "spoof": "synthetic"}
 
 pytestmark = pytest.mark.integration
 
@@ -42,11 +45,24 @@ def detector() -> AASISTSpoofDetector:
     return AASISTSpoofDetector()
 
 
+def manifest_sample(sample_id: str) -> Path | None:
+    """Resolves one manifest sample to its prepared audio file, if present."""
+    if not MANIFEST.is_file():
+        return None
+    for sample in json.loads(MANIFEST.read_text(encoding="utf-8"))["samples"]:
+        if sample["sample_id"] == sample_id:
+            path = EVAL_DIR / SUBDIR[sample["label"]] / sample["filename"]
+            return path if path.is_file() else None
+    return None
+
+
 def speech_like(seconds: float = 4.5, sample_rate: int = TARGET_SAMPLE_RATE) -> np.ndarray:
     """Builds a deterministic harmonic signal with a moving formant.
 
-    Not real speech, but a valid non-silent waveform: enough to prove the model
-    executes end to end and returns a usable probability.
+    NOT speech and NOT evidence of detection quality. It exists only to prove
+    the plumbing executes without needing the evaluation corpus. Every claim
+    about what the model can actually detect comes from the real-audio tests
+    below, which use genuine LibriSpeech and real Piper output.
     """
     t = np.arange(int(seconds * sample_rate), dtype=np.float32) / sample_rate
     f0 = 120.0 + 20.0 * np.sin(2 * np.pi * 1.5 * t)
@@ -71,8 +87,12 @@ def test_missing_model_fails_with_actionable_error(tmp_path) -> None:
 
 
 @model_installed
-def test_real_inference_returns_a_valid_probability(detector: AASISTSpoofDetector) -> None:
-    """A real forward pass produces a probability in range with timings."""
+def test_pipeline_executes_end_to_end(detector: AASISTSpoofDetector) -> None:
+    """The model runs and returns an in-range score with timings.
+
+    Plumbing only, on a generated waveform. Detection quality is asserted on
+    real audio further down.
+    """
     result = detector.score(speech_like(), TARGET_SAMPLE_RATE)
 
     assert 0.0 <= result.synthetic_probability <= 1.0
@@ -135,10 +155,54 @@ def test_unusable_audio_never_reaches_the_model(detector: AASISTSpoofDetector, t
         detector.score_file(short)
 
 
+real_audio = pytest.mark.skipif(
+    manifest_sample("genuine_033") is None or manifest_sample("synthetic_023") is None,
+    reason="evaluation audio not prepared; run python ml/scripts/prepare_eval_set.py --download",
+)
+
+
+@model_installed
+@real_audio
+def test_real_librispeech_sample_scores_as_human(detector: AASISTSpoofDetector) -> None:
+    """Real human speech from LibriSpeech scores far below the threshold.
+
+    Acceptance evidence on real corpus audio, not a generated waveform. The
+    sample is SHA-256 pinned in the manifest and inference is deterministic, so
+    this score is stable for this checkpoint.
+    """
+    result = detector.score_file(manifest_sample("genuine_033"))
+    assert 0.0 <= result.synthetic_probability <= 1.0
+    assert result.synthetic_probability < 0.01, f"real human speech scored {result.synthetic_probability}"
+    assert result.inference_seconds > 0
+
+
+@model_installed
+@real_audio
+def test_real_piper_sample_scores_as_synthetic(detector: AASISTSpoofDetector) -> None:
+    """Real Piper TTS output scores well above the threshold.
+
+    Acceptance evidence on real generated speech, not a generated waveform.
+    """
+    result = detector.score_file(manifest_sample("synthetic_023"))
+    assert 0.0 <= result.synthetic_probability <= 1.0
+    assert result.synthetic_probability > 0.9, f"real TTS scored {result.synthetic_probability}"
+    assert result.inference_seconds > 0
+
+
+@model_installed
+@real_audio
+def test_real_audio_separates_the_two_classes(detector: AASISTSpoofDetector) -> None:
+    """The anchored real samples sit on opposite sides of the threshold."""
+    genuine = detector.score_file(manifest_sample("genuine_033")).synthetic_probability
+    synthetic = detector.score_file(manifest_sample("synthetic_023")).synthetic_probability
+    assert synthetic > genuine
+    assert synthetic - genuine > 0.5
+
+
 @model_installed
 @pytest.mark.skipif(not audio_files("genuine"), reason="no genuine evaluation audio prepared")
-def test_real_genuine_samples_score(detector: AASISTSpoofDetector) -> None:
-    """Every prepared genuine sample yields a valid probability."""
+def test_every_prepared_genuine_sample_scores(detector: AASISTSpoofDetector) -> None:
+    """Every prepared genuine sample yields an in-range score."""
     for path in audio_files("genuine")[:5]:
         result = detector.score_file(path)
         assert 0.0 <= result.synthetic_probability <= 1.0, path
@@ -146,8 +210,8 @@ def test_real_genuine_samples_score(detector: AASISTSpoofDetector) -> None:
 
 @model_installed
 @pytest.mark.skipif(not audio_files("synthetic"), reason="no synthetic evaluation audio prepared")
-def test_real_synthetic_samples_score(detector: AASISTSpoofDetector) -> None:
-    """Every prepared synthetic sample yields a valid probability."""
+def test_every_prepared_synthetic_sample_scores(detector: AASISTSpoofDetector) -> None:
+    """Every prepared synthetic sample yields an in-range score."""
     for path in audio_files("synthetic")[:5]:
         result = detector.score_file(path)
         assert 0.0 <= result.synthetic_probability <= 1.0, path
