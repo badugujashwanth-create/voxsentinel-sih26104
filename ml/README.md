@@ -23,12 +23,15 @@ Voice spoof / deepfake detection for VoxSentinel.
 | `spoof/aasist.py` | `AASISTSpoofDetector` - the real model adapter |
 | `audio/preprocessing.py` | decode, downmix, resample, and validate audio |
 | `audio/chunker.py` | streaming windowing (from ROHAN-001) |
-| `scripts/setup_aasist.py` | fetch and verify the model + checkpoint |
+| `scripts/setup_aasist.py` | fetch and SHA-256 verify the model + checkpoint |
 | `scripts/detect.py` | score one or more files |
-| `scripts/evaluate.py` | metrics over a labelled manifest |
+| `scripts/evaluate.py` | score the set, write evidence, derive metrics |
+| `scripts/prepare_eval_set.py` | rebuild the evaluation audio from the manifest |
+| `scripts/build_eval_manifest.py` | author the manifest (run once; output committed) |
 | `scripts/benchmark_latency.py` | measured latency on this machine |
-| `scripts/prepare_eval_set.py` | assemble a labelled evaluation set |
-| `scripts/generate_tts_samples.py` | generate synthetic samples (optional tool) |
+| `evaluation/eval_manifest.json` | the 80 samples with provenance and hashes |
+| `evaluation/predictions.csv` | per-sample evidence for the published metrics |
+| `evaluation/evaluation_results.json` | summary derived from those predictions |
 
 ## Model
 
@@ -91,44 +94,84 @@ audio, very low signal level, and clipping.
 
 ### Known limitations
 
-- **Domain.** ASVspoof 2019 LA contains 2019-era TTS and voice-conversion
-  attacks. Speech from newer synthesis systems is out of that training domain.
-- **No telephony conditions.** The training data is clean studio-derived audio.
-  Narrowband codecs, packet loss, and network jitter are not represented, and
-  VoxSentinel's eventual input is a phone call.
-- **English-centric.** The training corpus is English. No multilingual claim is
-  made or supported here.
-- **Fixed 4.04 s window.** Longer audio is truncated; a call needs windowing
-  (see `audio/chunker.py`) and a strategy for combining per-window scores,
-  which this task does not define.
-- **No replay attacks.** The LA track covers synthetic speech, not the physical
-  replay attacks of the PA track. `replay_risk_score` remains unaddressed.
-- **Not calibrated.** The output is a softmax probability, not a calibrated
-  likelihood. The 0.5 threshold is an arbitrary midpoint, not a tuned operating
-  point.
+Carried forward deliberately. None of these is addressed in this task.
+
+**Channel and domain**
+
+- **No PSTN/VoIP codec degradation.** Training and evaluation audio is clean and
+  studio-derived. VoxSentinel's eventual input is a phone call.
+- **No mu-law / A-law evaluation.** Narrowband telephony coding is untested.
+- **No noisy phone-channel evaluation.** No packet loss, jitter, or background noise.
+- **Domain gap to modern synthesis.** ASVspoof 2019 LA contains 2019-era TTS and
+  voice-conversion attacks; newer systems are out of that training domain, and
+  the evaluation above shows the cost.
+- **English only.** No multilingual claim is made or supported.
+- **One TTS family evaluated** (Piper VITS, `en_US-libritts_r`).
+
+**Model and method**
+
+- **No replay / PA evaluation.** The LA track covers synthetic speech, not
+  physical replay attacks. `replay_risk_score` remains unaddressed.
+- **Fixed 4.04 s window.** Longer audio is truncated.
+- **No cross-window aggregation.** Combining per-window scores across a call is
+  undefined; `audio/chunker.py` produces the windows but nothing consumes them.
+- **No calibration.** The output is a softmax score, not a calibrated likelihood.
+- **Provisional threshold.** 0.5 is an arbitrary midpoint.
+
+**Integration**
+
+- **No final RiskProvider integration.** There is no `MLRiskProvider`; the
+  backend still serves `MockRiskProvider`, and nothing here is wired into the
+  live risk pipeline.
 
 ## Setup
 
 The ML runtime is deliberately separate from `backend/requirements.txt`; the
 demo backend stays free of torch until `MLRiskProvider` lands.
 
+From a clean machine, at the repository root:
+
 ```bash
-# from the repository root
-uv venv ml/.venv --python 3.12
-
-# torch MUST come from the CPU index, or pip/uv resolves the CUDA build
-# from PyPI and pulls several GB of unused NVIDIA wheels
-uv pip install --python ml/.venv/bin/python \
-  --index-url https://download.pytorch.org/whl/cpu torch==2.9.1
-uv pip install --python ml/.venv/bin/python -r ml/requirements.txt
-
-# fetch and verify the model definition and checkpoint (~1.3 MB)
-ml/.venv/bin/python ml/scripts/setup_aasist.py
+python -m venv ml/.venv
+source ml/.venv/bin/activate          # Windows: ml\.venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r ml/requirements.txt
 ```
 
-`setup_aasist.py --verify-only` re-checks the installed files without
-downloading. Everything it fetches lands in `ml/spoof/vendor/`, which is
-gitignored.
+`ml/.venv/` is gitignored and must never be committed.
+
+On Debian/Ubuntu (including WSL) `python -m venv` may fail with
+`ensurepip is not available`. Install the stdlib venv package first:
+
+```bash
+sudo apt install python3.12-venv
+```
+
+**Optional but recommended.** The `torch` pin resolves to the CUDA build on
+PyPI, which drags in several GB of NVIDIA wheels this project never uses.
+Everything here runs on CPU, so install the small CPU build first and pip will
+treat the requirement as already satisfied:
+
+```bash
+python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.9.1
+python -m pip install -r ml/requirements.txt
+```
+
+Then fetch and verify the model (~1.3 MB):
+
+```bash
+python ml/scripts/setup_aasist.py
+python ml/scripts/setup_aasist.py --verify-only   # re-check without downloading
+```
+
+`setup_aasist.py` pulls `models/AASIST.py`, `models/weights/AASIST.pth`, and the
+upstream LICENCE from pinned commit `a04c9863`, and **refuses to install any
+file whose SHA-256 does not match**. Everything lands in `ml/spoof/vendor/`,
+which is gitignored. No weights are committed.
+
+```bash
+python -m pytest tests/ml
+```
 
 ## Inference
 
@@ -136,40 +179,44 @@ gitignored.
 ml/.venv/bin/python ml/scripts/detect.py --audio path/to/sample.wav
 ```
 
-Real output, one genuine and one synthetic sample:
+Real output on two real corpus samples — one genuine LibriSpeech utterance and
+one real Piper-generated file. No synthetic test tones:
 
 ```
-File:                  ml/data/eval/genuine/librispeech_1272-128104-0000.flac
-Synthetic probability: 0.0007
-Bona-fide score:       +2.8367  (raw model output, higher = more human)
+File:                  ml/data/eval/genuine/librispeech_652-129742-0000.flac
+Spoof score:           0.0000   (uncalibrated, 0-1; higher = more synthetic-like)
+Bona-fide score:       +4.4868  (raw model output, higher = more human)
 Model:                 AASIST/AASIST.pth@ASVspoof2019-LA
-Audio duration:        5.86s at 16000 Hz
+Audio duration:        6.03s at 16000 Hz
 Preprocessing:         0.5 ms
-Inference latency:     476.4 ms
-Total:                 477.0 ms
+Inference latency:     364.7 ms
+Total:                 365.2 ms
 Warnings:
-  - truncated 5.86s of audio to the model's 4.04s window
+  - truncated 6.03s of audio to the model's 4.04s window
 
-File:                  ml/data/eval/synthetic/tts_000_spk000.wav
-Synthetic probability: 0.6707
-Bona-fide score:       -0.6457  (raw model output, higher = more human)
+File:                  ml/data/eval/synthetic/tts_023_spk256.wav
+Spoof score:           0.9988   (uncalibrated, 0-1; higher = more synthetic-like)
+Bona-fide score:       -3.5299  (raw model output, higher = more human)
 Model:                 AASIST/AASIST.pth@ASVspoof2019-LA
-Audio duration:        4.95s at 16000 Hz
+Audio duration:        5.06s at 16000 Hz
 Preprocessing:         2.9 ms
-Inference latency:     437.5 ms
-Total:                 440.4 ms
+Inference latency:     339.4 ms
+Total:                 342.3 ms
 Warnings:
   - resampled 22050Hz to 16000Hz
-  - truncated 4.95s of audio to the model's 4.04s window
+  - truncated 5.06s of audio to the model's 4.04s window
 
-Spoof-detection score only - not an identity or fraud decision.
+UNCALIBRATED spoof-model score. Not a probability that the audio is fake, not an
+identity decision, not a fraud decision, and not a VoxSentinel risk score.
 ```
 
-Multiple files and JSON output are supported:
+### Reading the score
 
-```bash
-ml/.venv/bin/python ml/scripts/detect.py --audio a.wav b.flac --json
-```
+The score is an **uncalibrated softmax output**. A value of `0.90` means "well
+above this model's spoof decision boundary on this input", **not** "90% likely
+to be fake". It carries no probability semantics and must never be presented to
+a user, a judge, or a report as a percentage likelihood. Calibration is future
+work.
 
 ## Tests
 
@@ -177,98 +224,169 @@ The ML tests live under `tests/ml/` and guard their imports, so the backend
 suite skips them cleanly in its own torch-free environment.
 
 ```bash
-# ML suite (fast unit tests + real-inference integration tests)
-ml/.venv/bin/python -m pytest tests/ml
+# full ML suite, including real-inference integration tests
+python -m pytest tests/ml
 
-# fast tests only, no model needed
-ml/.venv/bin/python -m pytest tests/ml -m "not integration"
+# fast tests only; no model and no audio needed
+python -m pytest tests/ml -m "not integration"
 
 # backend suite, unchanged and still torch-free
 backend/.venv/bin/python -m pytest
 ```
 
-Integration tests load the real checkpoint and run a real forward pass. They
-skip with a clear reason when the model is not installed; they are never
-mocked and then reported as passing.
+Integration tests load the real checkpoint and run a real forward pass. The
+acceptance assertions run against **real corpus audio** — a genuine LibriSpeech
+utterance and a real Piper-generated file, both SHA-256 pinned in the manifest —
+not against generated test tones. A single generated-waveform test remains, and
+is labelled as plumbing-only; it is not evidence of detection quality.
+
+Tests skip with a clear reason when the model or the evaluation audio is absent.
+Nothing is mocked and then reported as working.
+
+The metric tests in `tests/ml/evaluation/` check the confusion matrix, accuracy,
+precision, recall, F1, and EER against hand-computed cases, and assert that the
+committed summary is reproducible from the committed predictions.
 
 ## Evaluation
 
+The evaluation audio is **not committed** — no corpora, no generated speech, no
+private recordings. What is committed is everything needed to rebuild it
+byte-for-byte and to audit the published numbers:
+
+| File | What it is |
+| --- | --- |
+| `ml/evaluation/eval_manifest.json` | the 80 samples, with full provenance and a SHA-256 each |
+| `ml/evaluation/predictions.csv` | one row per sample: id, ground truth, score, prediction, duration, latency, warnings |
+| `ml/evaluation/evaluation_results.json` | the summary, derived from those rows |
+
+### Reproducing it
+
 ```bash
-# assemble a labelled set, then score it
-ml/.venv/bin/python ml/scripts/prepare_eval_set.py --librispeech ml/data/librispeech
-ml/.venv/bin/python ml/scripts/evaluate.py --manifest ml/data/eval/manifest.csv --per-sample
+# 1. rebuild all 80 samples and verify every SHA-256 (~420 MB of downloads)
+python ml/scripts/prepare_eval_set.py --download
+
+# 2. score them and refresh the committed artefacts
+python ml/scripts/evaluate.py --per-sample
+
+# verify an existing rebuild without regenerating
+python ml/scripts/prepare_eval_set.py --verify-only
 ```
 
-The manifest is CSV with `path,label`, where label is `bonafide` or `spoof`,
-and paths resolve relative to the manifest.
+`prepare_eval_set.py` fetches LibriSpeech dev-clean and the Piper voice, copies
+each genuine utterance named in the manifest, re-synthesises each synthetic
+sample from its recorded speaker/text/parameters, and checks every result
+against the manifest hash. It exits non-zero if anything differs, so a silent
+drift is not possible.
 
-`--threshold` sets the decision point (default `0.5`, an arbitrary midpoint,
-**not** a tuned operating point). The runner prints counts, the confusion
-matrix, accuracy, precision, recall, and F1, and warns loudly when there are
-fewer than 50 samples per class - at which point the numbers describe those
-files and nothing more.
+You can also re-derive the whole summary from the committed predictions alone,
+with no model, no audio, and no downloads:
+
+```bash
+python ml/scripts/evaluate.py --from-predictions ml/evaluation/predictions.csv
+```
+
+That reproduces the confusion matrix and every metric, which is what makes the
+published numbers auditable: nothing is hardcoded.
+
+`ml/scripts/build_eval_manifest.py` is the authoring step that produced the
+manifest. It is committed so the selection rule is executable rather than
+asserted, but it is not part of normal reproduction.
 
 ### Sample sources
 
 | Class | Source | Licence |
 | --- | --- | --- |
-| Genuine | LibriSpeech `dev-clean` (OpenSLR 12), read speech from public-domain LibriVox audiobooks | CC BY 4.0 |
-| Synthetic | Piper TTS, voice `en_US-libritts_r-medium` (904 speakers, trained on LibriTTS-R) | voice CC BY 4.0; Piper itself GPL-3.0 |
+| Genuine (40) | LibriSpeech `dev-clean` (OpenSLR 12), read speech from public-domain LibriVox audiobooks | CC BY 4.0 |
+| Synthetic (40) | Piper 1.8.0, voice `en_US-libritts_r-medium` (trained on LibriTTS-R) | voice CC BY 4.0; Piper itself GPL-3.0 |
+
+**Genuine selection rule**, recorded in the manifest and applied by
+`build_eval_manifest.py`: sort every `*.flac` under `dev-clean` by POSIX path;
+walking that order, take the first utterance per speaker whose duration is at
+least 4.5 s; stop at 40 speakers. One utterance per speaker, so all 40 are
+distinct voices.
+
+**Synthetic generation**: 12 prompts across 16 voice speakers, text and speaker
+advancing at different strides so no pair repeats, with `length_scale` varied
+over {0.95, 1.00, 1.05}. Each sample's exact text, speaker id, and synthesis
+parameters are in the manifest.
 
 Both classes derive from the same audiobook domain, so the comparison isolates
 real-versus-synthetic rather than also changing recording conditions.
 
-Piper is a sample-generation tool only. It is **not** a dependency of the
-detector and is not in `ml/requirements.txt`; install it in a throwaway
-environment:
+Piper is a data-generation tool. Nothing under `ml/spoof/` or `ml/audio/`
+imports it, and the detector does not need it at runtime.
 
-```bash
-uv venv /tmp/ttsvenv --python 3.12
-uv pip install --python /tmp/ttsvenv/bin/python piper-tts==1.8.0
-/tmp/ttsvenv/bin/python ml/scripts/generate_tts_samples.py
-```
+### A note on determinism
 
-No private or team voice recordings are used, and no audio is committed.
+Piper's default `noise_scale` and `noise_w_scale` sample inside the ONNX graph,
+so synthesising the same sentence twice produces **different audio every time**.
+Seeding `numpy` does not help, because the randomness is not in numpy. Both
+scales are therefore pinned to `0.0` in the manifest, which makes synthesis
+bit-reproducible and lets the manifest carry a meaningful SHA-256 per sample.
+
+AASIST inference itself is fully deterministic: the same file scores identically
+across repeated runs to all printed digits.
+
+This pinning is why the numbers below differ slightly from the first run
+reported in this PR, which used Piper's stochastic defaults. That run scored
+TP 33 / FN 7 (accuracy 0.8625, EER 0.1000); the reproducible set scores
+TP 31 / FN 9. The genuine half is **identical** across both runs (FP 4, TN 36),
+confirming that only the synthetic generation changed. Zero-noise synthesis is
+slightly flatter and, on this evidence, marginally harder for the detector.
+Exact reproducibility is worth that difference.
 
 ### Measured results
 
-80 samples, 40 genuine and 40 synthetic, threshold 0.5:
+80 samples, 40 genuine and 40 synthetic, threshold 0.5, generated from
+`ml/evaluation/predictions.csv`:
 
 ```
-Synthetic-probability distribution:
+Uncalibrated model-score distribution:
   bonafide  n=40   min=0.0000 median=0.0031 max=0.9580 stdev=0.2437
-  spoof     n=40   min=0.0682 median=0.9285 max=0.9980 stdev=0.2714
+  spoof     n=40   min=0.0873 median=0.8823 max=0.9988 stdev=0.3090
 
 Confusion matrix:
                     predicted spoof     predicted bonafide
-  actual spoof                     33                    7
+  actual spoof                     31                    9
   actual bonafide                   4                   36
 
-Metrics:
-  accuracy   0.8625
-  precision  0.8919
-  recall     0.8250
-  f1         0.8571
-  EER        0.1000   at threshold 0.3060
+Metrics (computed from labels + scores, never hardcoded):
+  accuracy   0.8375
+  precision  0.8857
+  recall     0.7750
+  f1         0.8267
+  EER        0.1250   at threshold 0.2401
 ```
 
-**These numbers are not an accuracy claim.** 80 samples from one TTS system and
-one read-speech corpus describe those 80 files. They are not a benchmark
-result and must not be quoted as one.
+### What these numbers are not
 
-What they do show:
+This is an **exploratory engineering evaluation**. Read every one of these
+before quoting any figure above:
 
-- **The model separates the two classes.** Median genuine 0.0031 against median
-  synthetic 0.9285 is real signal, not noise.
-- **The domain gap is visible and large.** A 10% EER here against roughly 0.83%
+- **80 samples only**, 40 genuine and 40 synthetic.
+- **One genuine corpus** (LibriSpeech dev-clean) and **one TTS family**
+  (Piper VITS, `en_US-libritts_r`).
+- **Not a benchmark.** Not comparable to published ASVspoof results.
+- **Not production accuracy.** 83.75% is not "VoxSentinel is 83.75% accurate",
+  and must never be presented that way.
+- **Not multilingual validation.** English only.
+- **Not telephony-channel validation.** Clean studio-derived audio throughout.
+- **The score is uncalibrated.** See "Reading the score" above.
+- **Threshold 0.5 is provisional**, an arbitrary midpoint, not tuned on a dev set.
+- **The EER is specific to this set** and will move on different data.
+
+What the numbers do support, narrowly:
+
+- **The model separates these two classes.** Median genuine 0.0031 against
+  median synthetic 0.8823 is real signal, not noise.
+- **There is a visible domain gap.** 12.5% EER here against roughly 0.83%
   published by the authors on in-domain ASVspoof 2019 LA eval is the cost of
-  scoring a 2023-era multi-speaker VITS voice with a model trained on 2019
-  attacks. Seven of forty synthetic samples slipped under 0.5.
-- **0.5 is the wrong threshold.** EER lands at 0.306. Any operating point must
-  be tuned on a real dev set before it goes anywhere near a decision.
+  scoring a modern multi-speaker VITS voice with a model trained on 2019
+  attacks. Nine of forty synthetic samples fell below 0.5.
+- **0.5 is the wrong cut point** for this data; EER lands at 0.2401.
 
-The honest next step is evaluation against ASVspoof 2019 LA eval, which is
-in-domain and properly sized, before any performance claim is made.
+The honest next step is evaluation against ASVspoof 2019 LA eval — in-domain and
+properly sized — before any performance claim is made.
 
 ## Latency
 
@@ -276,12 +394,11 @@ in-domain and properly sized, before any performance claim is made.
 ml/.venv/bin/python ml/scripts/benchmark_latency.py --audio path/to/sample.flac
 ```
 
-Measured on a real sample, 3 warm-up plus 20 measured passes:
+Measured on a real corpus sample, 3 warm-up plus 20 measured passes:
 
 ```
-Model:            AASIST/AASIST.pth@ASVspoof2019-LA
-Source:           ml/data/eval/genuine/librispeech_1272-128104-0000.flac
-Audio duration:   5.86s (model window 4.04s)
+Source:           ml/data/eval/genuine/librispeech_652-129742-0000.flac
+Audio duration:   6.03s (model window 4.04s)
 
 Hardware:
   device                       cpu
@@ -294,20 +411,20 @@ Hardware:
 
 Latency (milliseconds):
   stage               mean    median       min       max       p95
-  preprocessing       0.33      0.30      0.24      0.54      0.52
-  inference         498.41    450.27    409.34   1149.36    695.86
-  total             498.74    450.52    409.75   1149.90    696.17
+  preprocessing       0.31      0.29      0.24      0.43      0.43
+  inference         326.89    325.99    312.79    348.86    344.76
+  total             327.20    326.24    313.03    349.11    345.13
 
-Real-time factor: 9.0x  (model window / median total)
+Real-time factor: 12.4x  (model window / median total)
 ```
 
 Preprocessing is negligible; essentially all the cost is the forward pass.
-Scoring a 4.04 s window in a median 450 ms is about 9x faster than real time
-on CPU, which leaves headroom for the 0.5 s hop in `audio/chunker.py`.
+Scoring a 4.04 s window in a median 326 ms is about 12x faster than real time on
+CPU, which leaves headroom for the 0.5 s hop in `audio/chunker.py`.
 
-Caveats: this is one laptop CPU under WSL2, the spread is wide (p95 696 ms,
-max 1149 ms) because the machine is not otherwise idle, and this measures the
-model call only. It says nothing about end-to-end latency in a live call
+Caveats: this is one laptop CPU under WSL2, timings move with machine load
+(an earlier run on a busier machine measured a 450 ms median), and this measures
+the model call only. It says nothing about end-to-end latency in a live call
 pipeline, which does not exist yet. The GPU was present but unused.
 
 ## Privacy
