@@ -2,6 +2,8 @@ import { validateLiveRiskEvent, type LiveRiskEvent } from "../../domain/risk";
 import type { RiskStreamHandlers, RiskStreamSource } from "./RiskStreamSource";
 
 const RISK_STREAM_PATH = "/api/v1/calls";
+export const WS_UNKNOWN_CALL = 4404;
+export const WS_CALL_NOT_LIVE = 4409;
 
 /** Connects the console to the future backend risk stream contract. */
 export class WebSocketRiskStreamSource implements RiskStreamSource {
@@ -28,7 +30,11 @@ export class WebSocketRiskStreamSource implements RiskStreamSource {
     this.socket.onopen = () => this.emitStatus("LIVE");
     this.socket.onmessage = (message) => this.handleMessage(message.data);
     this.socket.onerror = () => this.reportError(new Error("Risk stream connection failed"));
-    this.socket.onclose = () => this.emitStatus("DISCONNECTED");
+    this.socket.onclose = (event) => {
+      if (event?.code === WS_UNKNOWN_CALL) this.reportError(new Error("Backend call was not found (4404)"));
+      if (event?.code === WS_CALL_NOT_LIVE) this.reportError(new Error("Backend call is not live (4409)"));
+      this.emitStatus("DISCONNECTED");
+    };
   }
 
   /** Closes the backend stream and reports disconnection. */

@@ -35,15 +35,15 @@ const VERIFICATION_LABELS: Record<VerificationMethod, string> = {
 
 /** Renders the evolving forensic console and its verification drawer. */
 export function SecurityConsole({ controller, verificationOpen, onOpenVerification, onCloseVerification }: SecurityConsoleProps) {
-  const { context, currentEvent, selectedScenario, presentationState, voiceRisk, protectedAction, identityVerification } = controller;
+  const { context, currentEvent, selectedScenario, presentationState, voiceRisk, protectedAction, identityVerification, streamError } = controller;
   const scenario = selectedScenario ? SCENARIOS[selectedScenario] : null;
-  const isLive = controller.streamStatus === "LIVE" || controller.timeline.length > 0;
+  const isLive = controller.streamStatus === "LIVE" || (controller.timeline.length > 0 && !streamError && controller.streamStatus !== "ERROR");
   const isCritical = voiceRisk.level === "CRITICAL";
   const isVerified = identityVerification.status === "VERIFIED";
 
   return (
     <main className={`console-page console-page--${presentationState.toLowerCase()}`}>
-      <ConsoleHeader isLive={isLive} onReset={controller.reset} />
+      <ConsoleHeader isLive={isLive} incidentId={controller.callId} liveMode={controller.liveMode} onReset={controller.reset} />
       <div className="console-body">
         <CallContextStrip context={context} scenarioLabel={scenario?.label} isLive={isLive} score={voiceRisk.score} level={voiceRisk.level} timestamp={currentEvent?.timestamp_ms ?? 0} />
         <section className="console-grid">
@@ -52,7 +52,7 @@ export function SecurityConsole({ controller, verificationOpen, onOpenVerificati
             <SignalHeading state={presentationState} />
             <ForensicWaveform risk={voiceRisk.score} state={presentationState} />
             <SignalCaption />
-            <SignalAlert state={presentationState} event={currentEvent} isCritical={isCritical} />
+            <SignalAlert state={presentationState} event={currentEvent} isCritical={isCritical} error={streamError} />
             <ProtectionState status={protectedAction.status} isCritical={isCritical} isVerified={isVerified} reasons={voiceRisk.reasons} onVerify={onOpenVerification} />
           </div>
           <EvidenceRail event={currentEvent} level={voiceRisk.level} state={presentationState} />
@@ -71,8 +71,9 @@ export function SecurityConsole({ controller, verificationOpen, onOpenVerificati
 }
 
 /** Renders the persistent product and demo-mode header. */
-function ConsoleHeader({ isLive, onReset }: { isLive: boolean; onReset(): void }) {
-  return <header className="brand-header console-header"><div className="brand-lockup"><AudioLines size={21} /><span>VoxSentinel</span><span className="brand-slash">/</span><small>Forensic Command Workspace</small></div><div className="header-center"><span className="incident-tag"><span className="status-dot status-dot--green" /> Incident #VX-88914</span><span className="header-separator">·</span><span>{isLive ? "Live call monitored" : "Awaiting call"}</span></div><div className="header-actions"><span className="simulation-badge"><span className="status-dot status-dot--cyan" /> DEMO MODE</span><button className="icon-button" aria-label="Reset scenario" onClick={onReset}><RotateCcw size={16} /></button></div></header>;
+function ConsoleHeader({ isLive, incidentId, liveMode, onReset }: { isLive: boolean; incidentId: string | null; liveMode: boolean; onReset(): void }) {
+  const incidentLabel = incidentId ? `Incident #${incidentId}` : "Session pending";
+  return <header className="brand-header console-header"><div className="brand-lockup"><AudioLines size={21} /><span>VoxSentinel</span><span className="brand-slash">/</span><small>Forensic Command Workspace</small></div><div className="header-center"><span className="incident-tag"><span className={`status-dot ${isLive ? "status-dot--green" : "status-dot--muted"}`} /> {incidentLabel}</span><span className="header-separator">·</span><span>{isLive ? "Live call monitored" : liveMode ? "Awaiting backend call" : "Awaiting call"}</span></div><div className="header-actions"><span className="simulation-badge"><span className={`status-dot ${liveMode ? "status-dot--green" : "status-dot--cyan"}`} /> {liveMode ? "LIVE MODE" : "DEMO MODE"}</span><button className="icon-button" aria-label="Reset scenario" onClick={onReset}><RotateCcw size={16} /></button></div></header>;
 }
 
 /** Renders the above-fold identity, request, call, and risk context. */
@@ -106,8 +107,8 @@ function ForensicWaveform({ risk, state }: { risk: number; state: string }) {
 function SignalCaption() { return <div className="signal-caption"><span><span className="status-dot status-dot--cyan" /> LIVE AUDIO ANALYSIS</span><span className="mono-label">CONFIDENCE BAND ACTIVE</span><span className="mono-label">F1—F4 REFERENCE</span></div>; }
 
 /** Renders progressive warning and critical forensic conclusions. */
-function SignalAlert({ state, event, isCritical }: { state: string; event: DemoController["currentEvent"]; isCritical: boolean }) {
-  return <AnimatePresence mode="wait">{state === "THREAT_EMERGING" && <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="signal-alert signal-alert--warning"><AlertTriangle size={16} /><div><strong>Synthesis artifact under review</strong><span>Signal continuity has diverged from the enrolled voice baseline.</span></div><span className="mono-label">ANOMALY {Math.round((event?.prosody_anomaly_score ?? 0) * 100)}%</span></motion.div>}{isCritical && <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="signal-alert signal-alert--critical"><ShieldAlert size={17} /><div><strong>Critical voice-risk conclusion</strong><span>Secondary verification cannot change the original audio assessment.</span></div><span className="mono-label">PRESERVED</span></motion.div>}</AnimatePresence>;
+function SignalAlert({ state, event, isCritical, error }: { state: string; event: DemoController["currentEvent"]; isCritical: boolean; error: Error | null }) {
+  return <AnimatePresence mode="wait">{error && <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="signal-alert signal-alert--critical"><ShieldAlert size={17} /><div><strong>Live connection unavailable</strong><span>{error.message}</span></div><span className="mono-label">CHECK BACKEND</span></motion.div>}{!error && state === "THREAT_EMERGING" && <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="signal-alert signal-alert--warning"><AlertTriangle size={16} /><div><strong>Synthesis artifact under review</strong><span>Signal continuity has diverged from the enrolled voice baseline.</span></div><span className="mono-label">ANOMALY {Math.round((event?.prosody_anomaly_score ?? 0) * 100)}%</span></motion.div>}{!error && isCritical && <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="signal-alert signal-alert--critical"><ShieldAlert size={17} /><div><strong>Critical voice-risk conclusion</strong><span>Secondary verification cannot change the original audio assessment.</span></div><span className="mono-label">PRESERVED</span></motion.div>}</AnimatePresence>;
 }
 
 /** Renders the intervention state and critical reasons above the fold. */
@@ -128,7 +129,7 @@ function RiskTimeline({ events, currentScore }: { events: DemoController["timeli
 function ReasonPanel({ reasons, eventCount, isCritical }: { reasons: string[]; eventCount: number; isCritical: boolean }) { return <div className="reason-panel"><div className="section-heading"><span className="eyebrow">Why this call is being evaluated</span><span className="mono-label">{eventCount ? `${eventCount.toString().padStart(2, "0")} EVENTS` : "BASELINE"}</span></div><div className="reason-list">{reasons.map((reason) => <div className="reason-item" key={reason}><span className={`reason-marker ${isCritical ? "reason-marker--critical" : ""}`} />{reason}</div>)}</div></div>; }
 
 /** Renders discreet operator controls below the judge-facing workspace. */
-function ConsoleFooter({ controller, selectedScenario }: { controller: DemoController; selectedScenario: ScenarioId | null }) { return <footer className="console-footer"><span><LockKeyhole size={13} /> SIMULATION MODE · Values are deterministic demo data</span><span className="mono-label">STREAM ADAPTER: {import.meta.env.VITE_DEMO_MODE === "false" ? "WEBSOCKET" : "MOCK"}</span><div className="footer-controls"><button className="text-button" onClick={() => selectedScenario && controller.selectScenario(selectedScenario)}><ArrowLeft size={14} /> Change scenario</button><button className="text-button" onClick={controller.reset}><RotateCcw size={14} /> Reset</button>{controller.streamStatus === "LIVE" ? <button className="text-button" onClick={controller.pause}>Pause</button> : <button className="text-button text-button--accent" onClick={controller.start}>{controller.timeline.length ? "Resume" : "Start analysis"}<ChevronRight size={14} /></button>}</div></footer>; }
+function ConsoleFooter({ controller, selectedScenario }: { controller: DemoController; selectedScenario: ScenarioId | null }) { const modeCopy = controller.liveMode ? "LIVE BACKEND MODE · Backend stream data" : "SIMULATION MODE · Values are deterministic demo data"; return <footer className="console-footer"><span><LockKeyhole size={13} /> {modeCopy}</span><span className="mono-label">STREAM ADAPTER: {controller.liveMode ? "WEBSOCKET" : "MOCK"}</span><div className="footer-controls"><button className="text-button" onClick={() => selectedScenario && controller.selectScenario(selectedScenario)}><ArrowLeft size={14} /> Change scenario</button><button className="text-button" onClick={controller.reset}><RotateCcw size={14} /> Reset</button>{controller.streamStatus === "LIVE" ? <button className="text-button" onClick={controller.pause}>Pause</button> : <button className="text-button text-button--accent" onClick={controller.start}>{controller.timeline.length ? "Resume" : "Start analysis"}<ChevronRight size={14} /></button>}</div></footer>; }
 
 /** Renders independent verification methods and their simulated progress. */
 function VerificationDrawer({ state, onClose, onBegin, onComplete, onFail }: { state: DemoController["identityVerification"]; onClose(): void; onBegin(method: VerificationMethod): void; onComplete(): void; onFail(): void }) {
