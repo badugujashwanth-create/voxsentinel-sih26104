@@ -1,21 +1,40 @@
-# VoxSentinel ML subsystem (spoof detection).
+# VoxSentinel ML subsystem (spoof detection) + evaluation.
 #
 # Kept separate from backend/requirements.txt on purpose: the demo backend must
-# stay free of a torch runtime until MLRiskProvider lands in a later task.
+# stay free of a torch runtime until MLRiskProvider lands.
 #
-# torch MUST come from the PyTorch CPU index, otherwise pip/uv resolves the
-# CUDA build from PyPI and pulls several GB of unused NVIDIA wheels:
+# Install on a clean machine:
 #
-#   uv pip install --index-url https://download.pytorch.org/whl/cpu torch==2.9.1
-#   uv pip install -r ml/requirements.txt
+#   python -m venv ml/.venv
+#   source ml/.venv/bin/activate            # Windows: ml\.venv\Scripts\activate
+#   python -m pip install --upgrade pip
+#   python -m pip install -r ml/requirements.txt
 #
-# GPU users can install a CUDA torch build instead; the detector takes a
-# --device argument. Everything here runs comfortably on CPU.
+# NOTE ON torch: the line below resolves to the CUDA build on PyPI, which pulls
+# several GB of NVIDIA wheels this project never uses. Everything here runs on
+# CPU. To get the small CPU build instead, install torch first:
+#
+#   python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.9.1
+#   python -m pip install -r ml/requirements.txt
+#
+# pip will then see torch as already satisfied. Both paths work; the CPU one is
+# roughly 800 MB instead of 3 GB.
 
+# --- Detector runtime -------------------------------------------------------
 torch==2.9.1
 numpy==2.3.4
 scipy==1.16.3
 soundfile==0.13.1
 
-# Tests
+# --- Evaluation-set regeneration --------------------------------------------
+# Needed by ml/scripts/prepare_eval_set.py to re-synthesise the 40 synthetic
+# samples from the committed manifest. The detector itself never imports piper:
+# nothing under ml/spoof/ or ml/audio/ depends on it.
+#
+# Licence note: piper-tts is GPL-3.0. It is used as a data-generation tool to
+# rebuild evaluation audio, not linked into anything VoxSentinel ships. Drop
+# this line if you only need to run the detector and the committed metrics.
+piper-tts==1.8.0
+
+# --- Tests ------------------------------------------------------------------
 pytest==9.1.1
