@@ -34,6 +34,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+import numpy as np  # noqa: E402
+import soundfile as sf  # noqa: E402
+
+from ml.audio.fingerprint import (  # noqa: E402
+    CANONICAL_TOLERANCE_DB,
+    envelope_db,
+    envelopes_match,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "ml" / "evaluation" / "eval_manifest.json"
 DEFAULT_EVAL_DIR = REPO_ROOT / "ml" / "data" / "eval"
@@ -45,11 +54,6 @@ VOICE_BASE = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/
 VOICE_NAME = "en_US-libritts_r-medium.onnx"
 
 SUBDIR = {"bonafide": "genuine", "spoof": "synthetic"}
-
-
-def sha256_bytes(payload: bytes) -> str:
-    """Returns the hex SHA-256 of a byte string."""
-    return hashlib.sha256(payload).hexdigest()
 
 
 def sha256_file(path: Path) -> str:
@@ -91,16 +95,31 @@ def download_corpus(corpus_dir: Path) -> None:
     archive.unlink()
 
 
-def download_voice(voice_dir: Path, expected_sha: str) -> Path:
-    """Fetches the Piper voice and checks it against the manifest hash."""
+def download_voice(voice_dir: Path) -> Path:
+    """Fetches the Piper voice model and its config."""
     voice = voice_dir / VOICE_NAME
     fetch(f"{VOICE_BASE}/{VOICE_NAME}", voice)
     fetch(f"{VOICE_BASE}/{VOICE_NAME}.json", voice_dir / f"{VOICE_NAME}.json")
-    actual = sha256_file(voice)
-    if actual != expected_sha:
-        raise SystemExit(f"voice checksum mismatch\n  expected {expected_sha}\n  got      {actual}")
-    print(f"  verified {VOICE_NAME}")
     return voice
+
+
+def verify_voice(voice_path: Path, sample: dict) -> None:
+    """Checks the voice model and config against the manifest, every run.
+
+    A different voice or config silently produces different speech, so this is
+    checked unconditionally rather than only on the download path.
+    """
+    config_path = voice_path.with_suffix(voice_path.suffix + ".json")
+    for path, key, label in ((voice_path, "voice_sha256", "voice model"), (config_path, "voice_config_sha256", "voice config")):
+        expected = sample.get(key)
+        if expected is None:
+            raise SystemExit(f"manifest is missing {key}; rebuild it with build_eval_manifest.py")
+        if not path.is_file():
+            raise SystemExit(f"{label} not found: {path}")
+        actual = sha256_file(path)
+        if actual != expected:
+            raise SystemExit(f"{label} checksum mismatch for {path.name}\n  expected {expected}\n  got      {actual}\nThe evaluation set cannot be reproduced with a different voice.")
+        print(f"  verified {label}: {path.name}")
 
 
 def rebuild_genuine(samples: list[dict], corpus_dir: Path, eval_dir: Path) -> list[tuple[str, str]]:
@@ -148,26 +167,74 @@ def rebuild_synthetic(samples: list[dict], voice_path: Path, eval_dir: Path) -> 
                     noise_w_scale=synthesis["noise_w_scale"],
                 ),
             )
-        payload = buffer.getvalue()
-        actual = sha256_bytes(payload)
-        if actual != sample["sha256"]:
-            problems.append((sample["sample_id"], f"regenerated audio hash mismatch (expected {sample['sha256'][:12]}, got {actual[:12]})"))
-        (destination / sample["filename"]).write_bytes(payload)
+        (destination / sample["filename"]).write_bytes(buffer.getvalue())
     return problems
 
 
-def verify(samples: list[dict], eval_dir: Path) -> list[tuple[str, str]]:
-    """Checks every prepared file against its recorded hash."""
+def verify_genuine(sample: dict, path: Path) -> str | None:
+    """Strict byte equality. These are copies of fixed corpus files."""
+    actual = sha256_file(path)
+    if actual != sample["sha256"]:
+        return f"SHA-256 mismatch (expected {sample['sha256'][:12]}, got {actual[:12]})"
+    return None
+
+
+def verify_synthetic(sample: dict, path: Path, tolerance_db: float) -> tuple[str | None, float]:
+    """Tolerant canonical-PCM check for regenerated Piper audio.
+
+    Format and length must match exactly; the energy envelope must match within
+    the measured tolerance. Full-file SHA-256 is reported but not gating,
+    because Piper output is not bit-reproducible across ONNX Runtime execution
+    plans (see ml/audio/fingerprint.py).
+    """
+    expected_envelope = sample.get("pcm_envelope_db")
+    if expected_envelope is None:
+        return "manifest has no pcm_envelope_db; rebuild it with build_eval_manifest.py", float("inf")
+
+    info = sf.info(str(path))
+    if info.samplerate != sample["sample_rate"]:
+        return f"sample rate {info.samplerate} != expected {sample['sample_rate']}", float("inf")
+    if info.channels != sample.get("channels", 1):
+        return f"channel count {info.channels} != expected {sample.get('channels', 1)}", float("inf")
+    if info.frames != sample["sample_count"]:
+        return f"sample count {info.frames} != expected {sample['sample_count']}", float("inf")
+
+    pcm, _ = sf.read(str(path), dtype="int16", always_2d=False)
+    matched, distance = envelopes_match(envelope_db(pcm), np.asarray(expected_envelope, dtype=np.float64), tolerance_db)
+    if not matched:
+        return f"canonical PCM envelope differs by {distance:.6f} dB (tolerance {tolerance_db} dB)", distance
+    return None, distance
+
+
+def verify(samples: list[dict], eval_dir: Path, tolerance_db: float = CANONICAL_TOLERANCE_DB) -> tuple[list[tuple[str, str]], dict]:
+    """Verifies every prepared sample by the rule appropriate to its class."""
     problems: list[tuple[str, str]] = []
+    stats = {"bonafide_strict": 0, "spoof_tolerant": 0, "worst_envelope_db": 0.0, "bit_identical": 0}
+
     for sample in samples:
         path = eval_dir / SUBDIR[sample["label"]] / sample["filename"]
         if not path.is_file():
             problems.append((sample["sample_id"], "not prepared"))
             continue
-        actual = sha256_file(path)
-        if actual != sample["sha256"]:
-            problems.append((sample["sample_id"], f"hash mismatch (expected {sample['sha256'][:12]}, got {actual[:12]})"))
-    return problems
+
+        if sample["label"] == "bonafide":
+            failure = verify_genuine(sample, path)
+            if failure:
+                problems.append((sample["sample_id"], failure))
+            else:
+                stats["bonafide_strict"] += 1
+            continue
+
+        failure, distance = verify_synthetic(sample, path, tolerance_db)
+        if failure:
+            problems.append((sample["sample_id"], failure))
+            continue
+        stats["spoof_tolerant"] += 1
+        stats["worst_envelope_db"] = max(stats["worst_envelope_db"], distance)
+        if sha256_file(path) == sample["sha256"]:
+            stats["bit_identical"] += 1
+
+    return problems, stats
 
 
 def main() -> int:
@@ -179,6 +246,7 @@ def main() -> int:
     parser.add_argument("--voice", type=Path, default=DEFAULT_VOICE_DIR / VOICE_NAME, help="Piper .onnx voice model")
     parser.add_argument("--download", action="store_true", help="fetch the corpus and voice first (~420 MB)")
     parser.add_argument("--verify-only", action="store_true", help="verify an existing rebuild without regenerating")
+    parser.add_argument("--tolerance-db", type=float, default=CANONICAL_TOLERANCE_DB, help=f"canonical-PCM envelope tolerance in dB (default {CANONICAL_TOLERANCE_DB})")
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
@@ -187,32 +255,41 @@ def main() -> int:
     synthetic = [s for s in samples if s["label"] == "spoof"]
 
     if args.verify_only:
-        problems = verify(samples, args.eval_dir)
+        verify_voice(args.voice, synthetic[0])
+        problems, stats = verify(samples, args.eval_dir, args.tolerance_db)
     else:
         if args.download:
             print("Fetching sources:")
             download_corpus(args.librispeech)
-            download_voice(args.voice.parent, synthetic[0]["voice_sha256"])
+            download_voice(args.voice.parent)
             print()
 
-        print(f"Rebuilding {len(genuine)} genuine samples from {args.librispeech}...")
+        print("Verifying generator inputs:")
+        verify_voice(args.voice, synthetic[0])
+
+        print(f"\nRebuilding {len(genuine)} genuine samples from {args.librispeech}...")
         problems = rebuild_genuine(genuine, args.librispeech, args.eval_dir)
         print(f"Re-synthesising {len(synthetic)} samples with {args.voice.name}...")
         problems += rebuild_synthetic(synthetic, args.voice, args.eval_dir)
-        problems += verify(samples, args.eval_dir)
+        extra, stats = verify(samples, args.eval_dir, args.tolerance_db)
+        problems += extra
 
     print()
     if problems:
-        print(f"FAILED: {len(problems)} of {len(samples)} samples did not match the manifest")
+        print(f"FAILED: {len(problems)} of {len(samples)} samples did not verify")
         for sample_id, reason in problems[:20]:
             print(f"  {sample_id}: {reason}")
         if len(problems) > 20:
             print(f"  ... and {len(problems) - 20} more")
         return 1
 
-    print(f"All {len(samples)} samples present and SHA-256 verified against the manifest.")
-    print(f"  bonafide {len(genuine)}  ->  {args.eval_dir / 'genuine'}")
-    print(f"  spoof    {len(synthetic)}  ->  {args.eval_dir / 'synthetic'}")
+    print(f"All {len(samples)} samples verified against the manifest.")
+    print(f"  LibriSpeech  {stats['bonafide_strict']:>2}/{len(genuine)}  strict SHA-256")
+    print(f"  Piper        {stats['spoof_tolerant']:>2}/{len(synthetic)}  tolerant canonical PCM "
+          f"(worst {stats['worst_envelope_db']:.6f} dB of {args.tolerance_db} dB allowed)")
+    print(f"  Total        {stats['bonafide_strict'] + stats['spoof_tolerant']:>2}/{len(samples)}")
+    print(f"\n  {stats['bit_identical']}/{len(synthetic)} Piper samples also happened to be bit-identical "
+          f"(informational; not required across machines)")
     return 0
 
 

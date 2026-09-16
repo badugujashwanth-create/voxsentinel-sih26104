@@ -35,6 +35,10 @@ soundfile==0.13.1
 # rebuild evaluation audio, not linked into anything VoxSentinel ships. Drop
 # this line if you only need to run the detector and the committed metrics.
 piper-tts==1.8.0
+# Pinned explicitly: piper declares onnxruntime<2,>=1, which leaves the inference
+# runtime floating. ONNX Runtime's execution plan affects float results, so an
+# unpinned version is an uncontrolled variable in any reproducibility claim.
+onnxruntime==1.30.0
 
 # --- Tests ------------------------------------------------------------------
 pytest==9.1.1

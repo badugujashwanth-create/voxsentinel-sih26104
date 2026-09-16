@@ -28,6 +28,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import soundfile as sf  # noqa: E402
 
+from ml.audio.fingerprint import (  # noqa: E402
+    CANONICAL_FLOOR_DB,
+    CANONICAL_FRAME_SAMPLES,
+    CANONICAL_TOLERANCE_DB,
+    fingerprint,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "ml" / "evaluation" / "eval_manifest.json"
 
@@ -148,8 +155,14 @@ def build_synthetic(voice_path: Path) -> list[dict]:
 
     import importlib.metadata as metadata
 
+    config_path = voice_path.with_suffix(voice_path.suffix + ".json")
+    if not config_path.is_file():
+        raise SystemExit(f"voice config not found beside the model: {config_path}")
+
     voice = PiperVoice.load(voice_path)
     piper_version = metadata.version("piper-tts")
+    voice_sha = sha256_file(voice_path)
+    config_sha = sha256_file(config_path)
     samples: list[dict] = []
 
     for index, text_id, speaker, length_scale in synthetic_plan():
@@ -169,6 +182,9 @@ def build_synthetic(voice_path: Path) -> list[dict]:
         with sf.SoundFile(io.BytesIO(payload)) as handle:
             duration = handle.frames / handle.samplerate
             sample_rate = handle.samplerate
+            channels = handle.channels
+            frames = handle.frames
+        pcm, _ = sf.read(io.BytesIO(payload), dtype="int16", always_2d=False)
 
         samples.append({
             "sample_id": f"synthetic_{index:03d}",
@@ -178,7 +194,8 @@ def build_synthetic(voice_path: Path) -> list[dict]:
             "generator_version": piper_version,
             "voice": "en_US-libritts_r-medium",
             "voice_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/libritts_r/medium/en_US-libritts_r-medium.onnx",
-            "voice_sha256": sha256_file(voice_path),
+            "voice_sha256": voice_sha,
+            "voice_config_sha256": config_sha,
             "license": "CC BY 4.0",
             "license_note": "Voice trained on LibriTTS-R (CC BY 4.0). Piper itself is GPL-3.0 and is a generation tool only, not a dependency of the detector.",
             "speaker_id": speaker,
@@ -191,10 +208,64 @@ def build_synthetic(voice_path: Path) -> list[dict]:
             },
             "filename": f"tts_{index:03d}_spk{speaker:03d}.wav",
             "sample_rate": sample_rate,
+            "channels": channels,
+            "sample_count": frames,
             "duration_seconds": round(duration, 4),
+            # Informational only: bit-identical reproduction holds on the
+            # authoring machine, but not across CPU kernel dispatch.
             "sha256": sha256_bytes(payload),
+            # The cross-machine gate: a coarse energy envelope compared with a
+            # measured tolerance. See ml/audio/fingerprint.py.
+            "pcm_envelope_db": fingerprint(pcm),
         })
     return samples
+
+
+def authoring_environment() -> dict:
+    """Captures the environment that produced this manifest.
+
+    Recorded so a mismatch on another machine is visible rather than inferred.
+    Differences here do not invalidate the set; they explain why full-file
+    hashes will not match.
+    """
+    import importlib.metadata as metadata
+    import platform
+
+    import onnxruntime as ort
+
+    def version(name: str) -> str:
+        """Returns an installed distribution version, or a marker."""
+        try:
+            return metadata.version(name)
+        except metadata.PackageNotFoundError:
+            return "(not installed)"
+
+    cpu_flags = ""
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("flags"):
+                interesting = {"avx", "avx2", "avx512f", "avx_vnni", "avx512_vnni", "fma", "sse4_2", "amx_tile"}
+                cpu_flags = " ".join(sorted(interesting.intersection(line.split(":", 1)[1].split())))
+                break
+    except OSError:
+        pass
+
+    return {
+        "python": platform.python_version(),
+        "piper_tts": version("piper-tts"),
+        "onnxruntime": version("onnxruntime"),
+        "numpy": version("numpy"),
+        "soundfile": version("soundfile"),
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "execution_providers": list(ort.get_available_providers()),
+        "onnxruntime_device": ort.get_device(),
+        "cpu_simd_flags": cpu_flags,
+        "note": (
+            "Full-file SHA-256 values for Piper samples reproduce bit-for-bit only in an environment "
+            "equivalent to this one. Cross-machine verification uses the tolerant canonical-PCM check."
+        ),
+    }
 
 
 def main() -> int:
@@ -214,7 +285,7 @@ def main() -> int:
     print(f"  {len(synthetic)} samples, {len({s['speaker_id'] for s in synthetic})} distinct voices")
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "created_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "description": (
             "VoxSentinel ROHAN-002 spoof-detection evaluation set: 40 genuine and 40 synthetic "
@@ -228,6 +299,24 @@ def main() -> int:
             "same text yields different audio on every run. Both are pinned to 0.0 here, which "
             "makes synthesis bit-reproducible. Seeding numpy does NOT help."
         ),
+        "verification": {
+            "bonafide": "strict SHA-256 of the file, which is a byte copy of a fixed corpus file",
+            "spoof": (
+                "tolerant canonical-PCM check: sample rate, channel count, and sample count must match "
+                "exactly, the Piper model and config hashes must match, and the frame-RMS dB envelope must "
+                "agree within the tolerance below. Full-file SHA-256 is informational only, because Piper "
+                "output is not bit-reproducible across ONNX Runtime execution plans."
+            ),
+            "canonical_frame_samples": CANONICAL_FRAME_SAMPLES,
+            "canonical_floor_db": CANONICAL_FLOOR_DB,
+            "canonical_tolerance_db": CANONICAL_TOLERANCE_DB,
+            "tolerance_evidence": (
+                "Execution-plan noise floor measured at 0.000120 dB worst-case over 40 samples and 6 "
+                "ONNX graph-optimisation mode pairs; the smallest corruption tested (0.5% amplitude) "
+                "measures 0.0430 dB. The tolerance sits ~83x above the noise and ~3.6x below that."
+            ),
+        },
+        "authoring_environment": authoring_environment(),
         "counts": {"bonafide": len(genuine), "spoof": len(synthetic), "total": len(genuine) + len(synthetic)},
         "samples": genuine + synthetic,
     }
