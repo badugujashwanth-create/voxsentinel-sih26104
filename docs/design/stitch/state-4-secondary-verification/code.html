@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "error-container": "#93000a", "surface-container-highest": "#33353a", "secondary-fixed": "#6ffbbe", "inverse-on-surface": "#2e3036", "tertiary": "#ffb95f", "outline": "#869397", "surface-dim": "#111319", "surface-container-lowest": "#0c0e13", "surface-tint": "#4cd7f6", "on-background": "#e2e2e9", "inverse-surface": "#e2e2e9", "surface-variant": "#33353a", "outline-variant": "#3d494c", "on-surface-variant": "#bcc9cd", "background": "#111319", "on-primary-fixed": "#001f26", "surface-container-high": "#282a30", "surface-container-low": "#191b21", "on-secondary-fixed-variant": "#005236", "primary": "#4cd7f6", "on-tertiary-fixed": "#2a1700", "tertiary-fixed": "#ffddb8", "error": "#ffb4ab", "on-error-container": "#ffdad6", "on-surface": "#e2e2e9", "secondary": "#4edea3", "on-secondary": "#003824", "on-secondary-container": "#00311f", "on-secondary-fixed": "#002113", "primary-fixed-dim": "#4cd7f6", "on-primary-fixed-variant": "#004e5c", "on-tertiary-container": "#563400", "surface-bright": "#37393f", "primary-container": "#06b6d4", "surface-container": "#1e1f25", "tertiary-container": "#e79400", "on-tertiary": "#472a00", "on-primary-container": "#00424f", "secondary-container": "#00a572", "on-primary": "#003640", "primary-fixed": "#acedff", "tertiary-fixed-dim": "#ffb95f", "on-error": "#690005", "inverse-primary": "#00687a", "secondary-fixed-dim": "#4edea3", "on-tertiary-fixed-variant": "#653e00", "surface": "#111319" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter-desktop": "1.5rem", "margin": "1rem", "space-xl": "2.5rem", "margin-tablet": "1.5rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "space-2xl": "4rem", "space-md": "1rem", "space-lg": "1.5rem", "gutter": "1rem", "margin-desktop": "2.5rem" }, "fontFamily": { "mono-metric": [ "JetBrains Mono" ], "body-lg": [ "Geist" ], "headline-xl": [ "Geist" ], "headline-xl-mobile": [ "Geist" ], "headline-md": [ "Geist" ], "label-md": [ "JetBrains Mono" ], "label-lg": [ "JetBrains Mono" ], "headline-lg": [ "Geist" ], "headline-lg-mobile": [ "Geist" ], "label-sm": [ "JetBrains Mono" ], "body-md": [ "Geist" ], "body-sm": [ "Geist" ] }, "fontSize": { "mono-metric": [ "26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "body-lg": [ "16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400" } ], "headline-xl": [ "44px", { "lineHeight": "52px", "letterSpacing": "-0.03em", "fontWeight": "600" } ], "headline-xl-mobile": [ "30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "headline-md": [ "22px", { "lineHeight": "30px", "letterSpacing": "-0.015em", "fontWeight": "500" } ], "label-md": [ "11px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" } ], "label-lg": [ "13px", { "lineHeight": "18px", "letterSpacing": "0.02em", "fontWeight": "500" } ], "headline-lg": [ "32px", { "lineHeight": "40px", "letterSpacing": "-0.025em", "fontWeight": "600" } ], "headline-lg-mobile": [ "24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" } ], "label-sm": [ "10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "400" } ], "body-md": [ "14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" } ], "body-sm": [ "12px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "400" } ] } } } };</script></head><body class="bg-surface-container-lowest font-body-md text-body-md text-on-surface min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container"><header class="fixed top-0 left-0 right-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-14 w-full px-gutter-desktop flex items-center justify-between"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-primary text-[20px]">graphic_eq</span><span class="font-headline-md text-headline-md text-on-surface tracking-tight uppercase">VoxSentinel</span></div><span class="text-outline-variant font-label-sm text-label-sm">/</span><div class="flex items-center gap-space-xs"><span class="px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">Enterprise Voice Shield</span><span class="px-space-xs py-0.5 rounded bg-surface-container-high text-primary font-mono-metric text-label-sm">VX-88914</span></div></div><div class="hidden md:flex items-center gap-space-sm font-label-md text-label-md"><div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container-low"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="text-on-surface uppercase tracking-wider">Incident #VX-88914</span><span class="text-outline">•</span><span class="text-on-surface-variant uppercase tracking-wider">Live Call Monitored</span></div><nav class="flex items-center gap-space-md ml-space-md" data-active-classes="text-primary font-medium"><a aria-current="page" class="transition-colors uppercase tracking-wider text-primary font-medium" data-path="live-telemetry-console" href="#">Live Telemetry</a><a class="text-on-surface-variant hover:text-on-surface transition-colors font-body-sm text-body-sm uppercase tracking-wider" data-path="forensic-harmonic-lab" href="#">Acoustic Lab</a><a class="text-on-surface-variant hover:text-on-surface transition-colors font-body-sm text-body-sm uppercase tracking-wider" data-path="incident-threat-matrix" href="#">Incident Audit</a></nav></div><div class="flex items-center gap-space-md"><div class="hidden lg:flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container-low text-secondary font-label-sm text-label-sm"><span class="material-symbols-outlined text-[14px]">verified_user</span><span class="uppercase tracking-wider">HSM Sealed</span></div><div class="hidden xl:flex items-center gap-space-xs font-mono-metric text-label-sm text-on-surface-variant"><span class="material-symbols-outlined text-[14px] text-outline">schedule</span><span>UTC 14:38:09.102</span></div><div class="flex items-center gap-space-xs px-space-sm py-1 rounded bg-surface-container text-secondary font-label-sm text-label-sm uppercase"><span class="w-1.5 h-1.5 rounded-full bg-secondary"></span><span>Shield Active</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-14 bg-surface-container-lowest min-h-screen"><div class="flex flex-col w-full">
+<div class="w-full max-w-7xl mx-auto px-gutter-desktop py-space-xl flex flex-col gap-space-xl">
+<!-- Top Meta Context Bar -->
+<div class="w-full bg-surface-container-low rounded-xl p-space-lg flex flex-col lg:flex-row lg:items-center lg:justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="px-space-xs py-0.5 rounded bg-surface-container-high text-primary font-label-sm text-label-sm uppercase tracking-wider">HSM State: Enforced</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">Audit Trail Immutable</span>
+<span class="text-outline-variant font-label-sm text-label-sm">•</span>
+<span class="text-secondary font-label-md text-label-md flex items-center gap-space-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            Out-of-Band Channel Validated
+          </span>
+</div>
+<div class="flex flex-wrap items-baseline gap-space-sm pt-space-xs">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">INCIDENT #VX-88914 RESOLUTION</h1>
+<span class="font-label-lg text-label-lg text-outline-variant uppercase">//</span>
+<span class="font-label-lg text-label-lg text-tertiary uppercase">Out-of-Band Escalation Complete</span>
+</div>
+</div>
+<div class="flex items-center gap-space-lg bg-surface-container rounded-lg px-space-md py-space-sm self-start lg:self-auto">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[22px]">account_balance</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Intercepted Wire Request</span>
+<span class="font-mono-metric text-headline-md text-error tracking-tight">₹25,00,000</span>
+</div>
+</div>
+<div class="h-8 w-px bg-surface-container-highest"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Target Identity Claim</span>
+<span class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-space-xs">
+            Arjun Mehta
+            <span class="text-outline font-normal font-body-sm text-body-sm">(Chief Financial Officer)</span>
+</span>
+</div>
+</div>
+</div>
+<!-- The 3 Pillars of Forensic Security Truth -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Separation of Security Dimensions</span>
+<span class="font-label-sm text-label-sm text-outline">Tri-factor Biometric Disconnect Standard SEC-802.11</span>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+<!-- Pillar 1: Voice Authenticity (Always Remains Critical) -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1 bg-error"></div>
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Pillar 01 // Input Trace</span>
+<span class="px-space-xs py-0.5 rounded bg-error-container text-on-error-container font-label-sm text-label-sm uppercase tracking-wider font-semibold">Critical Threat</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<span class="font-headline-md text-headline-md text-error font-medium tracking-tight">VOICE AUTHENTICITY</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                Inbound call telemetry definitively identified neural synthesis. Discontinuity markers detected across fundamental pitch tracts and vocoder phase harmonics.
+              </p>
+</div>
+</div>
+<div class="mt-space-lg pt-space-md bg-surface-container rounded-lg p-space-sm flex flex-col gap-space-xs">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface-variant">Synthetic Artifact Match</span>
+<span class="font-mono-metric text-error font-semibold">99.4% CONFIDENCE</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-error h-full rounded-full w-[99.4%]"></div>
+</div>
+<span class="font-mono-metric text-label-sm text-outline pt-1">Signature: V-CLONE-NEO-TTS_v4</span>
+</div>
+</div>
+<!-- Pillar 2: Identity Verification (Out-of-band confirmed) -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1 bg-secondary"></div>
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Pillar 02 // Physical Entity</span>
+<span class="px-space-xs py-0.5 rounded bg-secondary-container text-on-secondary-fixed font-label-sm text-label-sm uppercase tracking-wider font-semibold">Direct Callback</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<span class="font-headline-md text-headline-md text-secondary font-medium tracking-tight">IDENTITY RESOLVED</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                Physical CFO contacted on secondary encrypted hardware circuit. Live Arjun Mehta repudiated inbound transfer instructions and confirmed active deepfake spoofing.
+              </p>
+</div>
+</div>
+<div class="mt-space-lg pt-space-md bg-surface-container rounded-lg p-space-sm flex flex-col gap-space-xs">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface-variant">Secondary Channel</span>
+<span class="font-mono-metric text-secondary font-semibold">HARDWARE PINNED</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-secondary h-full rounded-full w-full"></div>
+</div>
+<span class="font-mono-metric text-label-sm text-outline pt-1">MSISDN: +91 98201 00412 (FIDO2 Push)</span>
+</div>
+</div>
+<!-- Pillar 3: Action Authorization (Legitimate workflow resolved) -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1 bg-primary"></div>
+<div class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant">Pillar 03 // Ledger Directive</span>
+<span class="px-space-xs py-0.5 rounded bg-primary-container text-on-primary font-label-sm text-label-sm uppercase tracking-wider font-semibold">Wire Blocked</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<span class="font-headline-md text-headline-md text-primary font-medium tracking-tight">TRANSACTION STATUS</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                Wire TX-88914 quarantined and purged from clearing queue. Vendor beneficiary ledger flag triggered across core banking interface. Zero asset leakage recorded.
+              </p>
+</div>
+</div>
+<div class="mt-space-lg pt-space-md bg-surface-container rounded-lg p-space-sm flex flex-col gap-space-xs">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface-variant">Settlement Lock</span>
+<span class="font-mono-metric text-primary font-semibold">INTERCEPT PURGE COMPLETE</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-full rounded-full w-full"></div>
+</div>
+<span class="font-mono-metric text-label-sm text-outline pt-1">Core Route: SWIFT-HOLD-SEC-89</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Central Verified Callback Protocol Audit Run -->
+<div class="bg-surface-container-low rounded-xl p-space-xl flex flex-col gap-space-lg">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">verified</span>
+</div>
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md text-on-surface">Verified Out-of-Band Callback Protocol</h2>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Strict execution log generated by Sovereign Call Manager</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs font-mono-metric text-label-md text-secondary">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+<span>EAL6+ Cryptographic Enclave</span>
+</div>
+</div>
+<!-- Chronological Stepper Process -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg relative">
+<!-- Step 1 -->
+<div class="bg-surface-container rounded-lg p-space-md flex flex-col gap-space-sm relative">
+<div class="flex items-center justify-between">
+<span class="font-mono-metric text-label-sm text-outline">PHASE 01</span>
+<span class="flex items-center gap-1 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+              COMPLETED
+            </span>
+</div>
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold">Callback Initiated</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Automated circuit breaker spun up an isolated voice trunk to the CFO's registered telecom hardware (+91 98201 00412) bypassing caller-provided return paths.
+          </p>
+<div class="pt-space-xs mt-auto flex items-center justify-between font-mono-metric text-label-sm text-outline border-t border-surface-container-highest">
+<span>Latency: 142ms</span>
+<span>Trunk: E.164-PRI</span>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="bg-surface-container rounded-lg p-space-md flex flex-col gap-space-sm relative">
+<div class="flex items-center justify-between">
+<span class="font-mono-metric text-label-sm text-outline">PHASE 02</span>
+<span class="flex items-center gap-1 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+              COMPLETED
+            </span>
+</div>
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold">Secure Channel Established</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Hardware-backed FIDO2 challenge pushed to secure enclave on registered iPhone 15 Pro. TouchID biometric confirmation signed with private key at 14:38:22 UTC.
+          </p>
+<div class="pt-space-xs mt-auto flex items-center justify-between font-mono-metric text-label-sm text-outline border-t border-surface-container-highest">
+<span>KeyID: 948a..f401</span>
+<span>Auth: WebAuthn</span>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="bg-surface-container rounded-lg p-space-md flex flex-col gap-space-sm relative">
+<div class="flex items-center justify-between">
+<span class="font-mono-metric text-label-sm text-outline">PHASE 03</span>
+<span class="flex items-center gap-1 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+              CONFIRMED
+            </span>
+</div>
+<h3 class="font-body-lg text-body-lg text-on-surface font-semibold">Identity Confirmed</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Live CFO Arjun Mehta verbally confirmed non-solicitation of the ₹25,00,000 transaction. Adversary impersonation recorded and committed to voiceprint threat database.
+          </p>
+<div class="pt-space-xs mt-auto flex items-center justify-between font-mono-metric text-label-sm text-outline border-t border-surface-container-highest">
+<span>Verdict: Repudiated</span>
+<span>Operator: Sentinel-AI</span>
+</div>
+</div>
+</div>
+<!-- Evidentiary Verification Box -->
+<div class="bg-surface-container-lowest rounded-lg p-space-md flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md">
+<div class="flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5">fingerprint</span>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">HSM Sealed Evidentiary Digest (SHA-256)</span>
+<code class="font-mono-metric text-label-md text-primary break-all">b7c93a812df94318c4e3398910ebf15c898912e7264a9192bf881a947c61d564</code>
+</div>
+</div>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-label-md transition-colors whitespace-nowrap" id="copyHashBtn">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+<span id="copyBtnText">Copy Digest</span>
+</button>
+</div>
+</div>
+<!-- Forensic Incident Audio & Forensic Transcript Snapshot -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- Deepfake Telemetry Snippet -->
+<div class="lg:col-span-7 bg-surface-container-low rounded-xl p-space-lg flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-error text-[18px]">graphic_eq</span>
+<span class="font-headline-md text-headline-md text-on-surface">Acoustic Spoof Signature Log</span>
+</div>
+<span class="font-mono-metric text-label-sm text-on-surface-variant">SAMPLE: INC-88914-A01.WAV</span>
+</div>
+<!-- Inline Waveform Mock (SVG) -->
+<div class="w-full bg-surface-container-lowest rounded-lg p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between font-mono-metric text-label-sm text-outline">
+<span>0.00s</span>
+<span class="text-error font-medium">DISCONTINUITY TRIGGER @ 02.41s</span>
+<span>05.80s</span>
+</div>
+<svg class="w-full h-16" fill="none" preserveaspectratio="none" viewbox="0 0 600 64">
+<!-- Normal Waveform Line (Left) -->
+<path d="M 0 32 Q 20 10, 40 32 T 80 32 T 120 18 T 160 32 T 200 44 T 240 32" fill="none" stroke="#4cd7f6" stroke-opacity="0.8" stroke-width="1.5"></path>
+<!-- Synthetic Artifact Burst (Middle) -->
+<path d="M 240 32 L 250 4 L 260 60 L 270 2 L 280 62 L 290 8 L 300 56 L 310 12 L 320 32" fill="none" stroke="#ffb4ab" stroke-width="2"></path>
+<!-- Flat/Unnatural pitch plateau typical of neural vocoder (Right) -->
+<path d="M 320 32 Q 360 28, 400 32 T 480 32 T 540 32 L 600 32" fill="none" stroke="#ffb4ab" stroke-dasharray="2 2" stroke-width="1.5"></path>
+<!-- Threshold Guides -->
+<line stroke="#33353a" stroke-dasharray="4 4" stroke-width="0.5" x1="0" x2="600" y1="12" y2="12"></line>
+<line stroke="#33353a" stroke-dasharray="4 4" stroke-width="0.5" x1="0" x2="600" y1="52" y2="52"></line>
+</svg>
+<div class="flex flex-wrap items-center justify-between text-label-sm font-mono-metric text-on-surface-variant pt-1 border-t border-surface-container">
+<span class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+              Pitch Stability Jitter: <strong class="text-error">0.004 st (Zero-variance synthetic)</strong>
+</span>
+<span>Spectral Flatness: 0.88</span>
+<span>Formant F1-F4 Shift: Incoherent</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<div class="bg-surface-container rounded p-space-sm flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Caller Voice Target</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Arjun Mehta</span>
+<span class="font-mono-metric text-label-sm text-error">Synthesized Audio Source</span>
+</div>
+<div class="bg-surface-container rounded p-space-sm flex flex-col">
+<span class="font-label-sm text-label-sm text-outline">Verified Recipient</span>
+<span class="font-body-md text-body-md text-on-surface font-medium">Arjun Mehta (Real)</span>
+<span class="font-mono-metric text-label-sm text-secondary">Physically Validated</span>
+</div>
+</div>
+</div>
+<!-- Action & Next Steps Guidance -->
+<div class="lg:col-span-5 bg-surface-container-low rounded-xl p-space-lg flex flex-col justify-between gap-space-md">
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[18px]">policy</span>
+<span class="font-headline-md text-headline-md text-on-surface">SOC Playbook Instructions</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Incident automatically indexed under <strong>APT-VOICE-INTERCEPT</strong> protocol. The caller audio stream has been quarantined and forwarded to Corporate Fraud Intelligence.
+          </p>
+<div class="flex flex-col gap-space-xs pt-space-xs">
+<div class="flex items-center gap-space-xs text-body-sm text-on-surface">
+<span class="material-symbols-outlined text-secondary text-[16px]">check</span>
+<span>Clearing house wire stop instruction confirmed (ACK-9092)</span>
+</div>
+<div class="flex items-center gap-space-xs text-body-sm text-on-surface">
+<span class="material-symbols-outlined text-secondary text-[16px]">check</span>
+<span>CFO credentials rotated via Okta / FIDO token reset</span>
+</div>
+<div class="flex items-center gap-space-xs text-body-sm text-on-surface">
+<span class="material-symbols-outlined text-secondary text-[16px]">check</span>
+<span>SIP route flagged: Trunk origin Telecom Provider-East</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-lg p-space-md flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Executive Reviewer Sign-Off</span>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center font-mono-metric text-label-sm text-on-primary font-bold">
+                VS
+              </div>
+<span class="font-body-sm text-body-sm text-on-surface">VoxSentinel SecOps Automation Agent</span>
+</div>
+<span class="font-mono-metric text-label-sm text-secondary">AUTO-SIGNED</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Evidentiary Action Bar (Impeccable Linear/Stripe Level Craft) -->
+<div class="w-full bg-surface-container rounded-xl p-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-md w-full md:w-auto">
+<button class="w-full md:w-auto px-space-lg py-2.5 rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-body-md text-body-md font-medium transition-all flex items-center justify-center gap-space-xs" id="closeSessionBtn">
+<span class="material-symbols-outlined text-[18px]">close</span>
+<span>Close Session</span>
+</button>
+<button class="hidden sm:flex items-center gap-space-xs px-space-md py-2.5 rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-colors" id="viewPcapBtn">
+<span class="material-symbols-outlined text-[18px]">data_object</span>
+<span>Inspect PCAP &amp; Raw SIP</span>
+</button>
+</div>
+<div class="flex items-center gap-space-sm w-full md:w-auto">
+<button class="w-full md:w-auto px-space-lg py-2.5 rounded bg-primary hover:bg-primary-container text-on-primary font-body-md text-body-md font-semibold transition-all flex items-center justify-center gap-space-xs shadow-md" id="exportDossierBtn">
+<span class="material-symbols-outlined text-[18px]">security_update_good</span>
+<span>Complete Incident Dossier &amp; Export to SOC</span>
+</button>
+</div>
+</div>
+<!-- Interactive Toast Notification -->
+<div class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-surface-container-high text-on-surface px-space-md py-space-sm rounded-lg shadow-xl flex items-center gap-space-sm" id="toastNotification">
+<span class="material-symbols-outlined text-secondary text-[20px]">task_alt</span>
+<span class="font-body-md text-body-md" id="toastMessage">Incident dossier committed to SIEM feed</span>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const copyHashBtn = document.getElementById('copyHashBtn');
+    const copyBtnText = document.getElementById('copyBtnText');
+    const exportDossierBtn = document.getElementById('exportDossierBtn');
+    const closeSessionBtn = document.getElementById('closeSessionBtn');
+    const toast = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+
+    function showToast(msg) {
+      if (!toast) return;
+      toastMessage.textContent = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+    }
+
+    if (copyHashBtn) {
+      copyHashBtn.addEventListener('click', () => {
+        const hashText = 'b7c93a812df94318c4e3398910ebf15c898912e7264a9192bf881a947c61d564';
+        navigator.clipboard.writeText(hashText).then(() => {
+          copyBtnText.textContent = 'Copied!';
+          showToast('HSM SHA-256 Digest copied to clipboard');
+          setTimeout(() => {
+            copyBtnText.textContent = 'Copy Digest';
+          }, 2000);
+        }).catch(() => {
+          showToast('Digest copied: ' + hashText.substring(0, 16) + '...');
+        });
+      });
+    }
+
+    if (exportDossierBtn) {
+      exportDossierBtn.addEventListener('click', () => {
+        exportDossierBtn.disabled = true;
+        exportDossierBtn.innerHTML = `
+          <span class="material-symbols-outlined text-[18px] animate-spin">sync</span>
+          <span>Signing &amp; Archiving...</span>
+        `;
+        setTimeout(() => {
+          exportDossierBtn.innerHTML = `
+            <span class="material-symbols-outlined text-[18px]">verified</span>
+            <span>Dossier Exported to SOC (SIEM #88914)</span>
+          `;
+          exportDossierBtn.classList.remove('bg-primary');
+          exportDossierBtn.classList.add('bg-secondary', 'text-on-secondary');
+          showToast('Incident VX-88914 archived to Splunk & Ledger');
+        }, 1200);
+      });
+    }
+
+    if (closeSessionBtn) {
+      closeSessionBtn.addEventListener('click', () => {
+        showToast('Resolution session closed. Returning to live queue...');
+      });
+    }
+  })();
+</script></main><footer class="w-full bg-surface-container-lowest py-space-md"><div class="w-full px-gutter-desktop flex flex-col md:flex-row items-center justify-between gap-space-sm font-label-sm text-label-sm text-on-surface-variant"><div class="flex items-center gap-space-sm"><span class="text-outline">VoxSentinel Biometric Core v4.9.1-SEC</span><span>•</span><span class="text-secondary">Realtime Neural Verification Operational</span></div><div class="flex items-center gap-space-md"><span class="text-outline">Sub-millisecond Latency Pipeline &lt;14ms</span><span class="text-outline">TLS 1.3 / EAL6+ Certified Session</span></div></div></footer></body></html>
