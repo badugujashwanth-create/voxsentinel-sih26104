@@ -28,6 +28,12 @@ datasets/
 data/raw/
 models/checkpoints/
 
+# Third-party model code and checkpoints fetched by ml/scripts/setup_aasist.py
+ml/spoof/vendor/
+
+# Evaluation audio: downloaded corpora and generated samples, never committed
+ml/data/
+
 # Editors and OS
 .vscode/
 .idea/
