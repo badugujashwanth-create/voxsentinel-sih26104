@@ -15,6 +15,12 @@
   .lower-band {
     margin-top: 12px;
   }
+
+  .console-page--secondary_verification .protection-state--eligible {
+    margin-top: 9px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
 }
 
 .protection-reasons,
@@ -35,10 +41,28 @@
 }
 
 .security-triad {
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
   margin-top: 10px;
   padding-top: 9px;
   border-top: 1px solid var(--divider);
+}
+
+.security-triad span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 12px;
+  border-left: 1px solid var(--divider);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.security-triad span:first-child {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .security-triad b,
@@ -70,4 +94,49 @@
 .callback-step--active b {
   border-color: var(--green);
   color: var(--green);
+}
+
+.identity-rail--resolved .resolved-rail-title {
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.identity-rail--resolved .resolved-rail-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.console-page--secondary_verification .lower-band {
+  grid-template-columns: 1fr .72fr;
+}
+
+.console-page--secondary_verification .timeline-panel,
+.console-page--secondary_verification .reason-panel {
+  min-height: 128px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.console-page--secondary_verification .reason-list {
+  gap: 7px;
+  margin-top: 12px;
+}
+
+@media (min-width: 821px) {
+  .console-page--secondary_verification .verification-drawer {
+    width: min(340px, 100%);
+  }
+
+  .console-page:has(.protection-state--eligible) .verification-drawer {
+    width: min(320px, 100%);
+  }
+
+  .console-page--secondary_verification .signal-caption .mono-label,
+  .console-page--secondary_verification .timeline-threshold-labels {
+    opacity: .62;
+  }
 }
