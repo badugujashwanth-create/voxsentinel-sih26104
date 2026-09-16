@@ -1,0 +1,10 @@
+# VoxSentinel demo backend.
+# Deliberately free of ML runtimes: ROHAN-001 ships no model inference.
+
+# Runtime
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+
+# Tests
+pytest==9.1.1
+httpx==0.28.1
