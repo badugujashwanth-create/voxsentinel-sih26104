@@ -1,0 +1,10 @@
+import { ArrowRight, AudioLines, ShieldCheck } from "lucide-react";
+import { SCENARIOS, type ScenarioId } from "../../scenarios/scenarios";
+
+interface ScenarioLauncherProps { onSelect(scenarioId: ScenarioId): void; }
+const SCENARIO_ORDER: ScenarioId[] = ["GENUINE", "HUMAN_IMPOSTOR", "AI_CLONE", "HIGH_VALUE_TRANSFER_ATTACK"];
+
+/** Presents the deterministic scenarios before the live console begins. */
+export function ScenarioLauncher({ onSelect }: ScenarioLauncherProps) {
+  return <main className="launcher-page"><header className="brand-header launcher-header"><div className="brand-lockup"><AudioLines size={21} /><span>VoxSentinel</span></div><div className="header-meta"><span className="status-dot status-dot--cyan" /> DEMO MODE <span className="meta-divider">/</span> VOICE SECURITY CONSOLE</div></header><section className="launcher-content" aria-labelledby="launcher-title"><div className="launcher-intro"><div className="eyebrow eyebrow--cyan"><span className="signal-glyph">∿</span> Real-time voice authenticity</div><h1 id="launcher-title">Choose an incident<br /><em>to investigate.</em></h1><p>Run a controlled scenario through the VoxSentinel forensic workflow. Values are simulated for this demonstration.</p></div><div className="scenario-list" aria-label="Demo scenarios">{SCENARIO_ORDER.map((scenarioId, index) => { const scenario = SCENARIOS[scenarioId]; const primary = scenarioId === "HIGH_VALUE_TRANSFER_ATTACK"; return <button className={`scenario-row ${primary ? "scenario-row--primary" : ""}`} key={scenarioId} onClick={() => onSelect(scenarioId)}><span className="scenario-index">0{index + 1}</span><span className="scenario-copy"><strong>{scenario.label}</strong><small>{scenario.summary}</small></span><span className="scenario-preview"><span>{scenario.events[0].overall_risk_score}</span><small>initial risk</small></span><ArrowRight className="scenario-arrow" size={18} /></button>; })}</div><div className="launcher-footnote"><ShieldCheck size={15} /><span>Offline demo path · No backend connection required</span></div></section></main>;
+}

@@ -1,0 +1,73 @@
+/* Keeps the decision surface above the fold on compact desktop projectors. */
+@media (min-width: 1151px) and (max-width: 1400px) {
+  .signal-column {
+    padding-top: 18px;
+  }
+
+  .waveform {
+    height: 200px;
+  }
+
+  .console-grid {
+    min-height: 0;
+  }
+
+  .lower-band {
+    margin-top: 12px;
+  }
+}
+
+.protection-reasons,
+.security-triad,
+.callback-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.protection-reasons span,
+.security-triad span,
+.callback-step {
+  color: var(--secondary);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.security-triad {
+  gap: 5px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--divider);
+}
+
+.security-triad b,
+.callback-step b {
+  color: var(--muted);
+  font: 500 9px var(--mono);
+  letter-spacing: .05em;
+}
+
+.callback-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.callback-step b {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--strong);
+}
+
+.callback-step--active {
+  color: var(--text);
+}
+
+.callback-step--active b {
+  border-color: var(--green);
+  color: var(--green);
+}
