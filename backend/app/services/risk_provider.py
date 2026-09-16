@@ -6,6 +6,11 @@ for real inference does not touch routing code.
 
 Everything ``MockRiskProvider`` returns is HAND-WRITTEN DEMO DATA. It performs
 no audio analysis and no inference of any kind.
+
+The scenario tables below mirror ``SCENARIOS`` in
+``frontend/src/scenarios/scenarios.ts`` field for field, so the console renders
+identically whether it runs its own offline fixtures or streams from this
+backend. If the fixtures there change, change these to match.
 """
 
 from __future__ import annotations
@@ -25,11 +30,13 @@ SCENARIO_EVENT_INTERVAL_MS = 700
 BASELINE_REASON = "Voice signal remains within the enrolled speaker baseline"
 SYNTHETIC_REASON = "Synthetic speech characteristics detected"
 MISMATCH_REASON = "Speaker identity mismatch"
-CONTEXT_REASON = "High-value transaction context"
+FINANCIAL_REQUEST_REASON = "High-value financial request"
 PROSODY_REASON = "Prosody anomaly detected"
 EMERGING_SYNTHESIS_REASON = "Synthesis artifact is emerging"
 EMERGING_DRIFT_REASON = "Speaker identity drift is emerging"
+INCREASING_MISMATCH_REASON = "Speaker identity mismatch is increasing"
 SENSITIVE_REQUEST_REASON = "Sensitive request requires review"
+MONITORED_FINANCIAL_REASON = "Sensitive financial request is being monitored"
 
 
 @dataclass(frozen=True)
@@ -47,8 +54,16 @@ class ScenarioStep:
     reasons: tuple[str, ...] = field(default=(BASELINE_REASON,))
 
 
-def _calm(score: int, action: RecommendedAction, reasons: tuple[str, ...] = (BASELINE_REASON,), **overrides: float) -> ScenarioStep:
-    """Builds a step from the quiet baseline profile with named overrides."""
+def _calm(
+    score: int,
+    action: RecommendedAction = RecommendedAction.MONITOR,
+    reasons: tuple[str, ...] = (BASELINE_REASON,),
+    **overrides: float,
+) -> ScenarioStep:
+    """Builds a step from the quiet baseline profile with named overrides.
+
+    Mirrors ``calmProfile`` and its spread overrides in the frontend fixtures.
+    """
     baseline = {
         "synthetic_probability": 0.08,
         "speaker_match_score": 0.92,
@@ -62,44 +77,44 @@ def _calm(score: int, action: RecommendedAction, reasons: tuple[str, ...] = (BAS
 
 # Scenario A - genuine caller. Risk stays flat and low.
 _GENUINE: tuple[ScenarioStep, ...] = (
-    _calm(12, RecommendedAction.NONE),
-    _calm(10, RecommendedAction.NONE),
-    _calm(14, RecommendedAction.NONE),
-    _calm(11, RecommendedAction.NONE),
-    _calm(13, RecommendedAction.NONE),
+    _calm(12),
+    _calm(10),
+    _calm(14),
+    _calm(11),
+    _calm(13),
 )
 
-# Scenario B - real human, wrong identity. Synthetic probability stays low
-# throughout; the speaker mismatch is what drives the score up.
+# Scenario B - real human, wrong identity. Synthetic probability stays at the
+# baseline throughout; the speaker mismatch is what drives the score up.
 _HUMAN_IMPOSTOR: tuple[ScenarioStep, ...] = (
-    _calm(18, RecommendedAction.MONITOR),
-    _calm(26, RecommendedAction.MONITOR, (EMERGING_DRIFT_REASON,), speaker_match_score=0.74, speaker_mismatch_score=0.26),
-    _calm(39, RecommendedAction.MONITOR, (MISMATCH_REASON,), speaker_match_score=0.61, speaker_mismatch_score=0.39, context_risk_score=0.40),
-    _calm(54, RecommendedAction.REQUIRE_OTP, (MISMATCH_REASON, SENSITIVE_REQUEST_REASON), speaker_match_score=0.46, speaker_mismatch_score=0.54, context_risk_score=0.62),
-    _calm(67, RecommendedAction.REQUIRE_CALLBACK, (MISMATCH_REASON, CONTEXT_REASON), speaker_match_score=0.33, speaker_mismatch_score=0.67, context_risk_score=0.76),
-    _calm(76, RecommendedAction.REQUIRE_CALLBACK, (MISMATCH_REASON, CONTEXT_REASON), speaker_match_score=0.24, speaker_mismatch_score=0.76, context_risk_score=0.82),
+    _calm(18),
+    _calm(26, reasons=(EMERGING_DRIFT_REASON,), speaker_match_score=0.74, speaker_mismatch_score=0.26),
+    _calm(39, reasons=(INCREASING_MISMATCH_REASON,), speaker_match_score=0.61, speaker_mismatch_score=0.39, context_risk_score=0.40),
+    _calm(54, reasons=(MISMATCH_REASON, SENSITIVE_REQUEST_REASON), speaker_match_score=0.46, speaker_mismatch_score=0.54, context_risk_score=0.62),
+    _calm(67, reasons=(MISMATCH_REASON, FINANCIAL_REQUEST_REASON), speaker_match_score=0.33, speaker_mismatch_score=0.67, context_risk_score=0.76),
+    _calm(76, reasons=(MISMATCH_REASON, FINANCIAL_REQUEST_REASON), speaker_match_score=0.24, speaker_mismatch_score=0.76, context_risk_score=0.82),
 )
 
 # Scenario C - AI voice clone. Synthetic probability and prosody anomaly climb
-# together and the call ends needing secondary verification.
+# together until the call is blocked.
 _AI_CLONE: tuple[ScenarioStep, ...] = (
-    _calm(20, RecommendedAction.MONITOR),
-    _calm(31, RecommendedAction.MONITOR, (EMERGING_SYNTHESIS_REASON,), synthetic_probability=0.31, prosody_anomaly_score=0.38),
-    _calm(46, RecommendedAction.REQUIRE_OTP, (SYNTHETIC_REASON,), synthetic_probability=0.46, prosody_anomaly_score=0.55, speaker_match_score=0.68, speaker_mismatch_score=0.32),
-    _calm(63, RecommendedAction.REQUIRE_OTP, (SYNTHETIC_REASON, PROSODY_REASON), synthetic_probability=0.63, prosody_anomaly_score=0.67, speaker_match_score=0.48, speaker_mismatch_score=0.52),
-    _calm(78, RecommendedAction.REQUIRE_VOICE_CHALLENGE, (SYNTHETIC_REASON, MISMATCH_REASON), synthetic_probability=0.78, prosody_anomaly_score=0.78, speaker_match_score=0.34, speaker_mismatch_score=0.66),
-    _calm(88, RecommendedAction.REQUIRE_VOICE_CHALLENGE, (SYNTHETIC_REASON, MISMATCH_REASON, PROSODY_REASON), synthetic_probability=0.88, prosody_anomaly_score=0.86, speaker_match_score=0.22, speaker_mismatch_score=0.78),
+    _calm(20),
+    _calm(31, reasons=(EMERGING_SYNTHESIS_REASON,), synthetic_probability=0.31, prosody_anomaly_score=0.38),
+    _calm(46, reasons=(SYNTHETIC_REASON,), synthetic_probability=0.46, prosody_anomaly_score=0.55, speaker_match_score=0.68, speaker_mismatch_score=0.32),
+    _calm(63, reasons=(SYNTHETIC_REASON, PROSODY_REASON), synthetic_probability=0.63, prosody_anomaly_score=0.67, speaker_match_score=0.48, speaker_mismatch_score=0.52),
+    _calm(78, reasons=(SYNTHETIC_REASON, MISMATCH_REASON), synthetic_probability=0.78, prosody_anomaly_score=0.78, speaker_match_score=0.34, speaker_mismatch_score=0.66),
+    _calm(88, RecommendedAction.BLOCK_ACTION, (SYNTHETIC_REASON, MISMATCH_REASON, PROSODY_REASON), synthetic_probability=0.88, prosody_anomaly_score=0.86, speaker_match_score=0.22, speaker_mismatch_score=0.78),
 )
 
 # Scenario D - primary SIH demo. Cloned executive voice authorising a large
 # transfer; ends BLOCK_ACTION at CRITICAL.
 _HIGH_VALUE_TRANSFER_ATTACK: tuple[ScenarioStep, ...] = (
-    _calm(18, RecommendedAction.MONITOR, context_risk_score=0.18),
-    _calm(27, RecommendedAction.MONITOR, (CONTEXT_REASON,), context_risk_score=0.27),
-    _calm(43, RecommendedAction.REQUIRE_OTP, (EMERGING_SYNTHESIS_REASON, CONTEXT_REASON), synthetic_probability=0.43, prosody_anomaly_score=0.36, context_risk_score=0.43),
-    _calm(61, RecommendedAction.REQUIRE_OTP, (SYNTHETIC_REASON, MISMATCH_REASON), synthetic_probability=0.61, speaker_match_score=0.48, speaker_mismatch_score=0.52, prosody_anomaly_score=0.58, context_risk_score=0.61),
-    _calm(79, RecommendedAction.REQUIRE_CALLBACK, (SYNTHETIC_REASON, MISMATCH_REASON, CONTEXT_REASON), synthetic_probability=0.79, speaker_match_score=0.31, speaker_mismatch_score=0.69, prosody_anomaly_score=0.72, context_risk_score=0.79),
-    _calm(92, RecommendedAction.BLOCK_ACTION, (SYNTHETIC_REASON, MISMATCH_REASON, CONTEXT_REASON), synthetic_probability=0.91, speaker_match_score=0.28, speaker_mismatch_score=0.72, prosody_anomaly_score=0.74, replay_risk_score=0.21, context_risk_score=0.95),
+    _calm(18, context_risk_score=0.18),
+    _calm(27, reasons=(MONITORED_FINANCIAL_REASON,), context_risk_score=0.27),
+    _calm(43, reasons=(EMERGING_SYNTHESIS_REASON, FINANCIAL_REQUEST_REASON), synthetic_probability=0.43, prosody_anomaly_score=0.36, context_risk_score=0.43),
+    _calm(61, reasons=(SYNTHETIC_REASON, MISMATCH_REASON), synthetic_probability=0.61, speaker_match_score=0.48, speaker_mismatch_score=0.52, prosody_anomaly_score=0.58, context_risk_score=0.61),
+    _calm(79, RecommendedAction.REQUIRE_CALLBACK, (SYNTHETIC_REASON, MISMATCH_REASON, FINANCIAL_REQUEST_REASON), synthetic_probability=0.79, speaker_match_score=0.31, speaker_mismatch_score=0.69, prosody_anomaly_score=0.72, context_risk_score=0.79),
+    _calm(92, RecommendedAction.BLOCK_ACTION, (SYNTHETIC_REASON, MISMATCH_REASON, FINANCIAL_REQUEST_REASON), synthetic_probability=0.91, speaker_match_score=0.28, speaker_mismatch_score=0.72, prosody_anomaly_score=0.74, replay_risk_score=0.21, context_risk_score=0.95),
 )
 
 SCENARIO_STEPS: dict[ScenarioId, tuple[ScenarioStep, ...]] = {

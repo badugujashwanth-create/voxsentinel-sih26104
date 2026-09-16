@@ -119,7 +119,7 @@ Event shape — field names and ranges mirror `frontend/src/domain/risk.ts`:
   "reasons": [
     "Synthetic speech characteristics detected",
     "Speaker identity mismatch",
-    "High-value transaction context"
+    "High-value financial request"
   ],
   "recommended_action": "BLOCK_ACTION"
 }
@@ -138,10 +138,15 @@ REQUIRE_VOICE_CHALLENGE, REQUIRE_SUPERVISOR, BLOCK_ACTION`.
 
 | Scenario | Progression | Final level | Final action |
 | --- | --- | --- | --- |
-| `GENUINE` | 12, 10, 14, 11, 13 | `LOW` | `NONE` |
-| `HUMAN_IMPOSTOR` | 18, 26, 39, 54, 67, 76 | `HIGH` | `REQUIRE_CALLBACK` |
-| `AI_CLONE` | 20, 31, 46, 63, 78, 88 | `CRITICAL` | `REQUIRE_VOICE_CHALLENGE` |
+| `GENUINE` | 12, 10, 14, 11, 13 | `LOW` | `MONITOR` |
+| `HUMAN_IMPOSTOR` | 18, 26, 39, 54, 67, 76 | `HIGH` | `MONITOR` |
+| `AI_CLONE` | 20, 31, 46, 63, 78, 88 | `CRITICAL` | `BLOCK_ACTION` |
 | `HIGH_VALUE_TRANSFER_ATTACK` | 18, 27, 43, 61, 79, 92 | `CRITICAL` | `BLOCK_ACTION` |
+
+These tables mirror `SCENARIOS` in `frontend/src/scenarios/scenarios.ts`
+field for field, so the console renders identically whether it replays its
+own offline fixtures or streams from this backend. If those fixtures change,
+change `app/services/risk_provider.py` to match.
 
 `HUMAN_IMPOSTOR` is the scenario that separates this product from a plain
 deepfake detector: synthetic probability stays low the whole way through while
