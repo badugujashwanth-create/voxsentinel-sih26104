@@ -36,4 +36,19 @@ describe("WebSocketRiskStreamSource", () => {
     expect(onStatusChange).toHaveBeenCalledWith("DISCONNECTED");
     source.dispose();
   });
+
+  it.each([
+    [4404, "Backend call was not found (4404)"],
+    [4409, "Backend call is not live (4409)"],
+  ])("reports backend close code %s", async (code, message) => {
+    const onError = vi.fn();
+    const source = new WebSocketRiskStreamSource("call-17", "https://api.example.test");
+    await source.start({ onEvent: vi.fn(), onStatusChange: vi.fn(), onError });
+    const socket = (source as unknown as { socket: { onclose: (event: CloseEvent) => void } }).socket;
+
+    socket.onclose({ code } as CloseEvent);
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message }));
+    source.dispose();
+  });
 });

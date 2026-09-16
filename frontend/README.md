@@ -25,6 +25,8 @@ The four deterministic scenarios are Genuine Caller, Human Impostor, AI Voice Cl
 
 Set `VITE_DEMO_MODE=false` and provide the backend origin with `VITE_API_BASE_URL`. The client connects to `/api/v1/calls/{call_id}/risk-stream` using the same `RiskStreamSource` contract as the mock adapter.
 
+In live mode, starting a selected scenario first creates a backend call with `POST /api/v1/calls`, starts it with `POST /api/v1/calls/{call_id}/start`, then opens the WebSocket with the returned `call_id`. Reset or normal stream completion stops the live call with `POST /api/v1/calls/{call_id}/stop` where the backend session is already live. Live setup failures are shown in the console; there is no automatic fallback to mock data.
+
 ## Checks
 
 ```bash
