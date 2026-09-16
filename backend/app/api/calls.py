@@ -1,14 +1,21 @@
-"""Call session REST endpoints."""
+"""Call session REST endpoints and the live risk WebSocket."""
 
 from __future__ import annotations
 
+import asyncio
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 
-from app.models.call import CallSession, CreateCallRequest, CreateCallResponse
-from app.services.call_service import CallService
+from app.config import get_settings
+from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCallResponse
+from app.services.call_service import CallNotFoundError, CallService
+from app.services.risk_provider import MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
+
+#: Application-specific WebSocket close codes (4000-4999 is the private range).
+WS_UNKNOWN_CALL = 4404
+WS_CALL_NOT_LIVE = 4409
 
 router = APIRouter(prefix="/api/v1/calls", tags=["calls"])
 
@@ -17,6 +24,15 @@ router = APIRouter(prefix="/api/v1/calls", tags=["calls"])
 def get_session_store() -> SessionStore:
     """Returns the process-wide session store."""
     return SessionStore()
+
+
+@lru_cache(maxsize=1)
+def get_risk_provider() -> RiskProvider:
+    """Returns the configured risk provider.
+
+    Swapping the demo engine for real inference happens here and nowhere else.
+    """
+    return MockRiskProvider()
 
 
 def get_call_service(store: SessionStore = Depends(get_session_store)) -> CallService:
@@ -46,3 +62,31 @@ def start_call(call_id: str, service: CallService = Depends(get_call_service)) -
 def stop_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
     """Moves a live call to ``COMPLETED``."""
     return service.stop(call_id)
+
+
+@router.websocket("/{call_id}/risk-stream")
+async def stream_risk(websocket: WebSocket, call_id: str) -> None:
+    """Emits live risk events for a call that is already ``LIVE``."""
+    await websocket.accept()
+    service = CallService(get_session_store())
+
+    try:
+        session = service.get(call_id)
+    except CallNotFoundError:
+        await websocket.close(code=WS_UNKNOWN_CALL, reason="Unknown call_id")
+        return
+
+    if session.status is not CallStatus.LIVE:
+        await websocket.close(code=WS_CALL_NOT_LIVE, reason=f"Call is {session.status}, not LIVE")
+        return
+
+    interval_seconds = get_settings().risk_emit_interval_ms / 1000
+    try:
+        for index, event in enumerate(get_risk_provider().stream(session)):
+            if index:
+                await asyncio.sleep(interval_seconds)
+            await websocket.send_json(event.model_dump(mode="json"))
+        await websocket.close()
+    except (WebSocketDisconnect, RuntimeError):
+        # Client hung up mid-stream; nothing to clean up beyond stopping.
+        return
