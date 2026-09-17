@@ -11,6 +11,8 @@ export const RECOMMENDED_ACTIONS = [
   "BLOCK_ACTION",
 ] as const;
 export type RecommendedAction = (typeof RECOMMENDED_ACTIONS)[number];
+export const EVIDENCE_AVAILABILITY = ["MEASURED", "NOT_EVALUATED"] as const;
+export type EvidenceAvailability = (typeof EVIDENCE_AVAILABILITY)[number];
 
 export interface LiveRiskEvent {
   call_id: string;
@@ -26,6 +28,7 @@ export interface LiveRiskEvent {
   risk_level: RiskLevel;
   reasons: string[];
   recommended_action: RecommendedAction;
+  evidence_availability?: Record<string, EvidenceAvailability>;
 }
 
 const MIN_RISK_SCORE = 0;
@@ -66,6 +69,11 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
   if (!Array.isArray(event.reasons) || event.reasons.some((reason) => typeof reason !== "string" || reason.trim().length === 0)) {
     throw new Error("Risk event reasons must contain non-empty strings");
   }
+  if (event.evidence_availability !== undefined) {
+    if (!isRecord(event.evidence_availability) || Object.values(event.evidence_availability).some((availability) => !isEvidenceAvailability(availability))) {
+      throw new Error("Risk event evidence_availability is invalid");
+    }
+  }
 
   return {
     call_id: event.call_id,
@@ -81,6 +89,7 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     risk_level: event.risk_level,
     reasons: [...event.reasons],
     recommended_action: event.recommended_action,
+    evidence_availability: event.evidence_availability ? { ...event.evidence_availability } : undefined,
   };
 }
 
@@ -119,4 +128,9 @@ function isRiskLevel(value: unknown): value is RiskLevel {
 /** Checks whether a value is a known recommended action. */
 function isRecommendedAction(value: unknown): value is RecommendedAction {
   return typeof value === "string" && RECOMMENDED_ACTIONS.includes(value as RecommendedAction);
+}
+
+/** Checks whether a detector availability value is part of the shared contract. */
+function isEvidenceAvailability(value: unknown): value is EvidenceAvailability {
+  return typeof value === "string" && EVIDENCE_AVAILABILITY.includes(value as EvidenceAvailability);
 }
