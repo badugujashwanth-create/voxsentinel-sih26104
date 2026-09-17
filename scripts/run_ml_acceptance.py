@@ -15,7 +15,7 @@ SUPPORTED_SUFFIXES = {".wav": "audio/wav", ".flac": "audio/flac"}
 MINIMUM_ACCEPTANCE_OBSERVATIONS = 2
 
 
-async def run_acceptance(base_url: str, audio_path: Path, scenario: str) -> list[dict[str, object]]:
+async def run_acceptance(base_url: str, audio_path: Path, scenario: str) -> dict[str, object]:
     """Creates a call, starts it, feeds complete audio, and collects events."""
     if audio_path.suffix.lower() not in SUPPORTED_SUFFIXES:
         raise ValueError("audio path must end in .wav or .flac")
@@ -40,8 +40,9 @@ async def run_acceptance(base_url: str, audio_path: Path, scenario: str) -> list
                     raise RuntimeError("ML stream ended before two observations") from error
             response = await feed_task
             response.raise_for_status()
+            audio_acknowledgement = response.json()
         await client.post(f"/api/v1/calls/{call_id}/stop")
-    return events
+    return {"call_id": call_id, "audio": audio_acknowledgement, "events": events}
 
 
 def main() -> int:

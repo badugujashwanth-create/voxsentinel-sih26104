@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from dataclasses import replace
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
@@ -129,8 +131,10 @@ async def ingest_audio(call_id: str, request: Request, service: CallService = De
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="X-Audio-Chunk-Sequence must be an integer") from error
     try:
         container = await read_limited_body(request)
+        preprocessing_started = time.perf_counter()
         canonical = await asyncio.to_thread(decode_and_canonicalize, container, request.headers.get("content-type", ""))
-        return registry.ingest_canonical(call_id, canonical, chunk_sequence)
+        acknowledgement = registry.ingest_canonical(call_id, canonical, chunk_sequence)
+        return replace(acknowledgement, preprocessing_ms=(time.perf_counter() - preprocessing_started) * 1000)
     except AudioConversionError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
     except SessionClosedError as error:

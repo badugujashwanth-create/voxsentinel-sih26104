@@ -235,6 +235,7 @@ class MLRiskProvider(RiskProvider):
                 recommended_action=decision.action,
                 inference_latency_ms=evidence.inference_ms,
                 provider_round_trip_ms=(time.perf_counter() - inference_started) * 1000,
+                preprocessing_latency_ms=evidence.preprocessing_ms,
                 synthetic_score_semantics="uncalibrated",
                 evidence_availability={
                     "speaker_match_score": EvidenceAvailability.NOT_EVALUATED,

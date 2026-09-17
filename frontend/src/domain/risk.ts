@@ -30,6 +30,7 @@ export interface LiveRiskEvent {
   recommended_action: RecommendedAction;
   inference_latency_ms?: number;
   provider_round_trip_ms?: number;
+  preprocessing_latency_ms?: number;
   synthetic_score_semantics?: "uncalibrated";
   evidence_availability?: Record<string, EvidenceAvailability>;
 }
@@ -80,7 +81,7 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
   if (event.synthetic_score_semantics !== undefined && event.synthetic_score_semantics !== "uncalibrated") {
     throw new Error("Risk event synthetic_score_semantics is invalid");
   }
-  for (const field of ["inference_latency_ms", "provider_round_trip_ms"] as const) {
+  for (const field of ["inference_latency_ms", "provider_round_trip_ms", "preprocessing_latency_ms"] as const) {
     if (event[field] !== undefined && (typeof event[field] !== "number" || !Number.isFinite(event[field]) || event[field] < 0)) {
       throw new Error(`Risk event ${field} is invalid`);
     }
@@ -102,6 +103,7 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     recommended_action: event.recommended_action,
     inference_latency_ms: event.inference_latency_ms,
     provider_round_trip_ms: event.provider_round_trip_ms,
+    preprocessing_latency_ms: event.preprocessing_latency_ms,
     synthetic_score_semantics: event.synthetic_score_semantics,
     evidence_availability: event.evidence_availability ? { ...event.evidence_availability } : undefined,
   };

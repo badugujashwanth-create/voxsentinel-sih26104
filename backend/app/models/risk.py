@@ -75,6 +75,7 @@ class LiveRiskEvent(BaseModel):
     recommended_action: RecommendedAction
     inference_latency_ms: float | None = Field(default=None, ge=0.0)
     provider_round_trip_ms: float | None = Field(default=None, ge=0.0)
+    preprocessing_latency_ms: float | None = Field(default=None, ge=0.0)
     synthetic_score_semantics: Literal["uncalibrated"] | None = None
     evidence_availability: dict[str, EvidenceAvailability] | None = None
 

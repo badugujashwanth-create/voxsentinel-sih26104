@@ -19,4 +19,5 @@ class RawSpoofEvidence(BaseModel):
     prediction: Literal["bonafide", "spoof"] = "bonafide"
     audio_duration_ms: float = Field(ge=0.0, default=0.0)
     inference_ms: float = Field(ge=0.0)
+    preprocessing_ms: float = Field(ge=0.0, default=0.0)
     warnings: list[str] = Field(default_factory=list)

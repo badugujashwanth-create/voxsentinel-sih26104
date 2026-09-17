@@ -41,6 +41,7 @@ class AASISTInferenceRuntime:
 
     async def infer(self, request: SpoofInferenceRequest) -> SpoofInferenceResponse:
         """Validates transport bytes and asynchronously executes exact-window inference."""
+        preprocessing_start = time.perf_counter()
         health = self.health()
         if not health.ready or self._detector is None:
             raise RuntimeError("AASIST model is unavailable")
@@ -54,6 +55,7 @@ class AASISTInferenceRuntime:
         samples = np.frombuffer(raw_bytes, dtype="<f4").copy()
         if samples.shape != (AASIST_SAMPLE_COUNT,) or not np.isfinite(samples).all():
             raise ValueError("samples must be finite exact-size float32 values")
+        preprocessing_ms = (time.perf_counter() - preprocessing_start) * 1000
         async with self._forward_gate:
             inference_start = time.perf_counter()
             result = await asyncio.to_thread(self._detector.score_model_window, samples)
@@ -66,5 +68,6 @@ class AASISTInferenceRuntime:
             prediction=prediction,
             audio_duration_ms=AASIST_SAMPLE_COUNT / AASIST_SAMPLE_RATE * 1000,
             inference_ms=inference_ms,
+            preprocessing_ms=preprocessing_ms,
             warnings=list(result.warnings),
         )

@@ -14,3 +14,4 @@ class AudioIngestAcknowledgement:
     accepted_sample_count: int
     windows_enqueued: int
     dropped_window_count: int
+    preprocessing_ms: float = 0.0
