@@ -5,12 +5,13 @@ from __future__ import annotations
 import asyncio
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 
 from app.config import get_settings
 from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCallResponse
 from app.services.call_service import CallNotFoundError, CallService
 from app.services.async_session import AudioSessionRegistry, SessionClosedError
+from app.services.audio_conversion import AudioConversionError
 from app.services.ml_service_client import MLServiceClient, MLServiceError
 from app.services.risk_provider import MLRiskProvider, MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
@@ -72,9 +73,9 @@ async def start_call(call_id: str, service: CallService = Depends(get_call_servi
         try:
             runtime_session = await provider.prepare_session(call_id)
         except MLServiceError as error:
-            raise ValueError(f"ML start unavailable: {error}") from error
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start unavailable: {error}") from error
         except Exception as error:
-            raise ValueError(f"ML start failed: {error}") from error
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start failed: {error}") from error
     try:
         return service.start(call_id)
     except Exception:
@@ -98,16 +99,20 @@ async def ingest_audio(call_id: str, request: Request, service: CallService = De
     """Accepts one complete WAV/FLAC container for a live runtime session."""
     session = service.get(call_id)
     if session.status is not CallStatus.LIVE:
-        raise ValueError(f"Call is {session.status}, not LIVE")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Call is {session.status}, not LIVE")
     sequence_header = request.headers.get("x-audio-chunk-sequence")
     try:
         chunk_sequence = int(sequence_header or "")
     except ValueError as error:
-        raise ValueError("X-Audio-Chunk-Sequence must be an integer") from error
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="X-Audio-Chunk-Sequence must be an integer") from error
     try:
         return registry.ingest(call_id, await request.body(), request.headers.get("content-type", ""), chunk_sequence)
+    except AudioConversionError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
     except SessionClosedError as error:
-        raise ValueError(str(error)) from error
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
 
 @router.websocket("/{call_id}/risk-stream")
