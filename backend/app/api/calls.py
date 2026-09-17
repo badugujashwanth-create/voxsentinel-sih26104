@@ -175,9 +175,11 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
         async for event in provider.stream(stream_session, cancellation):
             await websocket.send_json(event.model_dump(mode="json", exclude_none=True))
         await websocket.close()
-    except (WebSocketDisconnect, RuntimeError):
+    except WebSocketDisconnect:
         # Client hung up mid-stream; nothing to clean up beyond stopping.
         return
+    except Exception as error:
+        await websocket.close(code=1011, reason=f"ML risk stream failed: {error}")
     finally:
         cancellation.set()
         if isinstance(provider, MLRiskProvider) and runtime_session is not None:

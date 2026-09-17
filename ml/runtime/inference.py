@@ -54,8 +54,8 @@ class AASISTInferenceRuntime:
         samples = np.frombuffer(raw_bytes, dtype="<f4").copy()
         if samples.shape != (AASIST_SAMPLE_COUNT,) or not np.isfinite(samples).all():
             raise ValueError("samples must be finite exact-size float32 values")
-        inference_start = time.perf_counter()
         async with self._forward_gate:
+            inference_start = time.perf_counter()
             result = await asyncio.to_thread(self._detector.score_model_window, samples)
         inference_ms = (time.perf_counter() - inference_start) * 1000
         prediction = "spoof" if result.synthetic_probability >= SPOOF_DECISION_THRESHOLD else "bonafide"

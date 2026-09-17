@@ -41,6 +41,12 @@ class AsyncCallSession:
         self._next_window_sequence = 0
         self.last_chunk_sequence = 0
         self.window_scheduler: Any | None = None
+        self.spoof_aggregator: Any | None = None
+        self.risk_policy: Any | None = None
+        self.event_sequence = 0
+        self.spoof_aggregator: Any | None = None
+        self.risk_policy: Any | None = None
+        self.event_sequence = 0
         self._stream_claimed = False
         self._closed = False
 

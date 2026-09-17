@@ -37,7 +37,7 @@ def test_stream_payloads_satisfy_the_frontend_contract(client: TestClient, live_
     for payload in drain(client, live_call_id):
         event = LiveRiskEvent.model_validate(payload)
         assert event.call_id == live_call_id
-        assert set(payload) == set(LiveRiskEvent.model_fields) - {"evidence_availability", "synthetic_score_semantics"}
+        assert set(payload) == set(LiveRiskEvent.model_fields) - {"evidence_availability", "synthetic_score_semantics", "inference_latency_ms", "provider_round_trip_ms"}
 
 
 def test_sequence_and_timestamps_increase_monotonically(client: TestClient, live_call_id: str) -> None:

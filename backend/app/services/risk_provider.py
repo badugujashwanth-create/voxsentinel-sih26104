@@ -201,21 +201,27 @@ class MLRiskProvider(RiskProvider):
         registered = self.registry.get(session.call_id)
         if registered is not session:
             raise ValueError("session is not the current registered runtime session")
-        aggregator = TemporalSpoofAggregator()
-        policy = MLRiskPolicy()
-        event_sequence = 0
+        if session.spoof_aggregator is None:
+            session.spoof_aggregator = TemporalSpoofAggregator()
+        if session.risk_policy is None:
+            session.risk_policy = MLRiskPolicy()
+        aggregator = session.spoof_aggregator
+        policy = session.risk_policy
         while not cancellation.is_set():
             try:
                 window = await session.next_window()
             except SessionClosedError:
                 return
+            inference_started = time.perf_counter()
             evidence = await self.client.infer(window.samples)
+            if cancellation.is_set() or not self.registry.is_current(session.call_id, session.generation_token):
+                return
             aggregate = aggregator.add(evidence)
             decision = policy.evaluate(aggregate.threshold_state)
-            event_sequence += 1
+            session.event_sequence += 1
             yield LiveRiskEvent(
                 call_id=session.call_id,
-                sequence=event_sequence,
+                sequence=session.event_sequence,
                 timestamp_ms=int(time.time() * 1000),
                 synthetic_probability=evidence.raw_spoof_score,
                 speaker_match_score=0.0,
@@ -227,6 +233,8 @@ class MLRiskProvider(RiskProvider):
                 risk_level=decision.level,
                 reasons=list(decision.reasons),
                 recommended_action=decision.action,
+                inference_latency_ms=evidence.inference_ms,
+                provider_round_trip_ms=(time.perf_counter() - inference_started) * 1000,
                 synthetic_score_semantics="uncalibrated",
                 evidence_availability={
                     "speaker_match_score": EvidenceAvailability.NOT_EVALUATED,
