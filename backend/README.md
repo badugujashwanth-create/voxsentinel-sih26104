@@ -1,5 +1,13 @@
 # Backend
 
+JASH-004 keeps this service Torch-free. The default
+`VOXSENTINEL_RISK_PROVIDER=mock` preserves the deterministic judge demo.
+`VOXSENTINEL_RISK_PROVIDER=ml` requires the separate loopback ML service and
+`VOXSENTINEL_ML_SERVICE_URL`; ML failures are surfaced and never replaced with
+mock results.
+
+See `docs/integration/JASH-004-ML-RUNTIME.md` for the real-audio setup.
+
 Ownership boundary: Rohan.
 
 FastAPI service backing the VoxSentinel live-call console.
