@@ -6,11 +6,20 @@ from fastapi import FastAPI, HTTPException, status
 
 from ml.runtime.contracts import HealthResponse, SpoofInferenceRequest, SpoofInferenceResponse
 from ml.runtime.inference import AASISTInferenceRuntime
+from ml.spoof.aasist import AASISTSpoofDetector, ModelNotInstalledError
+
+
+def load_verified_runtime() -> AASISTInferenceRuntime:
+    """Loads the verified checkpoint or exposes an unavailable runtime."""
+    try:
+        return AASISTInferenceRuntime(detector=AASISTSpoofDetector())
+    except (ModelNotInstalledError, OSError, RuntimeError):
+        return AASISTInferenceRuntime()
 
 
 def create_app(runtime: AASISTInferenceRuntime | None = None) -> FastAPI:
     """Creates the local service with an optionally injected runtime."""
-    active_runtime = runtime or AASISTInferenceRuntime()
+    active_runtime = runtime or load_verified_runtime()
     app = FastAPI(title="VoxSentinel ML Runtime", version="0.1.0")
 
     @app.get("/health", response_model=HealthResponse)
