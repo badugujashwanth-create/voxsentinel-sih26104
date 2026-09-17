@@ -29,6 +29,7 @@ audio as indicative, not as a measured accuracy claim.
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -61,10 +62,20 @@ BONAFIDE_INDEX = 1
 SPOOF_INDEX = 0
 
 DEFAULT_VENDOR_DIR = Path(__file__).resolve().parent / "vendor" / "aasist"
+EXPECTED_CHECKPOINT_SHA256 = "51d2d9cf0738172f61e2a384ec50a54a55363240f67c971ed55a92435bc1a1c0"
 
 
 class ModelNotInstalledError(RuntimeError):
     """Raised when the AASIST definition or checkpoint is missing."""
+
+
+def _sha256(path: Path) -> str:
+    """Returns a file's SHA-256 digest for checkpoint integrity validation."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def _load_upstream_module(definition_path: Path) -> ModuleType:
@@ -103,6 +114,8 @@ class AASISTSpoofDetector(SpoofDetector):
         missing = [path.name for path in (definition, weights) if not path.is_file()]
         if missing:
             raise ModelNotInstalledError(f"missing {', '.join(missing)} in {vendor}. Run: python ml/scripts/setup_aasist.py")
+        if _sha256(weights) != EXPECTED_CHECKPOINT_SHA256:
+            raise ModelNotInstalledError(f"checkpoint checksum mismatch in {vendor}. Run: python ml/scripts/setup_aasist.py --force")
 
         self._device = torch.device(device)
         upstream = _load_upstream_module(definition)
@@ -147,4 +160,30 @@ class AASISTSpoofDetector(SpoofDetector):
             audio_duration_seconds=prepared.duration_seconds,
             sample_rate=AASIST_SAMPLE_RATE,
             warnings=tuple([*prepared.warnings, *pad_warnings]),
+        )
+
+    def score_model_window(self, samples: np.ndarray) -> SpoofResult:
+        """Scores one backend-canonical exact model window without reprocessing it."""
+        if not isinstance(samples, np.ndarray) or samples.ndim != 1 or samples.shape[0] != AASIST_INPUT_SAMPLES:
+            raise ValueError(f"samples must contain exactly {AASIST_INPUT_SAMPLES} values")
+        if samples.dtype != np.dtype("float32") or not np.isfinite(samples).all():
+            raise ValueError("samples must be finite float32 values")
+        contiguous_samples = np.ascontiguousarray(samples, dtype=np.float32)
+        tensor = torch.from_numpy(contiguous_samples).unsqueeze(0).to(self._device)
+        inference_start = time.perf_counter()
+        with torch.no_grad():
+            _, logits = self._model(tensor)
+        inference_seconds = time.perf_counter() - inference_start
+        scores = logits.squeeze(0).float().cpu()
+        probabilities = torch.softmax(scores, dim=0)
+        return SpoofResult(
+            synthetic_probability=float(probabilities[SPOOF_INDEX]),
+            bonafide_score=float(scores[BONAFIDE_INDEX]),
+            raw_scores=tuple(float(value) for value in scores),
+            model_id=self.model_id,
+            inference_seconds=inference_seconds,
+            preprocessing_seconds=0.0,
+            audio_duration_seconds=AASIST_INPUT_SAMPLES / AASIST_SAMPLE_RATE,
+            sample_rate=AASIST_SAMPLE_RATE,
+            warnings=(),
         )

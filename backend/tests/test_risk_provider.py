@@ -7,6 +7,7 @@ exactly so the console looks the same offline and live.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import pytest
@@ -99,7 +100,11 @@ def make_session(scenario: ScenarioId) -> CallSession:
 
 def events_for(scenario: ScenarioId) -> list[LiveRiskEvent]:
     """Collects the full scripted stream for one scenario."""
-    return list(MockRiskProvider().stream(make_session(scenario)))
+    async def collect() -> list[LiveRiskEvent]:
+        """Collects events from the asynchronous provider stream."""
+        return [event async for event in MockRiskProvider(emit_interval_ms=0).stream(make_session(scenario), asyncio.Event())]
+
+    return asyncio.run(collect())
 
 
 @pytest.mark.parametrize("scenario", list(ScenarioId))

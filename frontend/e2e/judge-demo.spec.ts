@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.skip(process.env.VITE_DEMO_MODE === "false", "Canonical scenario is offline demo-only");
+
 test("runs the canonical high-value transfer protection flow", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /High-Value Transfer Attack/i }).click();

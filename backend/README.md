@@ -1,17 +1,23 @@
 # Backend
 
+JASH-004 keeps this service Torch-free. The default
+`VOXSENTINEL_RISK_PROVIDER=mock` preserves the deterministic judge demo.
+`VOXSENTINEL_RISK_PROVIDER=ml` requires the separate loopback ML service and
+`VOXSENTINEL_ML_SERVICE_URL`; ML failures are surfaced and never replaced with
+mock results.
+
+See `docs/integration/JASH-004-ML-RUNTIME.md` for the real-audio setup.
+
 Ownership boundary: Rohan.
 
 FastAPI service backing the VoxSentinel live-call console.
 
-> ## Risk output is MOCK DATA
+> ## Provider modes
 >
-> Every risk score, probability, and reason this service returns comes from a
-> hand-written scenario table in `app/services/risk_provider.py`. There is **no
-> model, no audio analysis, and no inference of any kind** in this build. Do not
-> describe this output as real AI detection in a demo, a report, or a
-> submission. The real detector arrives in a later task behind the same
-> `RiskProvider` interface.
+> `mock` returns hand-written scenario data for the deterministic demo. `ml`
+> consumes raw AASIST spoof evidence from the separate loopback ML service. ML
+> output is uncalibrated evidence, not identity verification, fraud certainty,
+> or final risk fusion.
 
 ## Setup
 
@@ -168,9 +174,8 @@ backend/app/
 └── state/session_store.py      in-memory sessions
 ```
 
-`RiskProvider` is the seam for real detection. A future `MLRiskProvider`
-implements the same interface and is returned from `get_risk_provider()` in
-`api/calls.py`; no routing or WebSocket code changes.
+`RiskProvider` is the seam shared by `MockRiskProvider` and `MLRiskProvider`.
+`get_risk_provider()` selects them from `VOXSENTINEL_RISK_PROVIDER`.
 
 Streaming audio windowing lives at repo root in `ml/audio/chunker.py`
 (buffering only — no model, no classification).

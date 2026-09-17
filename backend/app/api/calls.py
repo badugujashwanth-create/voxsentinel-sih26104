@@ -3,21 +3,48 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from dataclasses import replace
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 
 from app.config import get_settings
 from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCallResponse
 from app.services.call_service import CallNotFoundError, CallService
-from app.services.risk_provider import MockRiskProvider, RiskProvider
+from app.services.async_session import AudioSessionRegistry, SessionClosedError
+from app.services.audio_conversion import AudioConversionError
+from app.services.audio_conversion import decode_and_canonicalize
+from app.services.ml_service_client import MLServiceClient, MLServiceError
+from app.services.risk_provider import MLRiskProvider, MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
 
 #: Application-specific WebSocket close codes (4000-4999 is the private range).
 WS_UNKNOWN_CALL = 4404
 WS_CALL_NOT_LIVE = 4409
+MAX_AUDIO_CONTAINER_BYTES = 25 * 1024 * 1024
 
 router = APIRouter(prefix="/api/v1/calls", tags=["calls"])
+
+
+async def read_limited_body(request: Request, maximum_bytes: int = MAX_AUDIO_CONTAINER_BYTES) -> bytes:
+    """Reads a request body with a bounded container size."""
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Content-Length must be an integer") from error
+        if declared_length < 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Content-Length must not be negative")
+        if declared_length > maximum_bytes:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="audio container is too large")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > maximum_bytes:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="audio container is too large")
+    return bytes(body)
 
 
 @lru_cache(maxsize=1)
@@ -27,12 +54,21 @@ def get_session_store() -> SessionStore:
 
 
 @lru_cache(maxsize=1)
+def get_audio_session_registry() -> AudioSessionRegistry:
+    """Returns the process-wide audio runtime-session registry."""
+    return AudioSessionRegistry()
+
+
+@lru_cache(maxsize=1)
 def get_risk_provider() -> RiskProvider:
     """Returns the configured risk provider.
 
     Swapping the demo engine for real inference happens here and nowhere else.
     """
-    return MockRiskProvider()
+    settings = get_settings()
+    if settings.risk_provider_mode.value == "ml":
+        return MLRiskProvider(get_audio_session_registry(), MLServiceClient(settings.ml_service_url))
+    return MockRiskProvider(emit_interval_ms=settings.risk_emit_interval_ms)
 
 
 def get_call_service(store: SessionStore = Depends(get_session_store)) -> CallService:
@@ -53,15 +89,58 @@ def read_call(call_id: str, service: CallService = Depends(get_call_service)) ->
 
 
 @router.post("/{call_id}/start", response_model=CallSession)
-def start_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
+async def start_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
     """Moves a call from ``CREATED`` to ``LIVE``."""
-    return service.start(call_id)
+    provider = get_risk_provider()
+    runtime_session = None
+    if isinstance(provider, MLRiskProvider):
+        try:
+            runtime_session = await provider.prepare_session(call_id)
+        except MLServiceError as error:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start unavailable: {error}") from error
+        except Exception as error:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start failed: {error}") from error
+    try:
+        return service.start(call_id)
+    except Exception:
+        if isinstance(provider, MLRiskProvider) and runtime_session is not None:
+            await provider.close_session(call_id, runtime_session.generation_token)
+        raise
 
 
 @router.post("/{call_id}/stop", response_model=CallSession)
-def stop_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
+async def stop_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
     """Moves a live call to ``COMPLETED``."""
-    return service.stop(call_id)
+    result = service.stop(call_id)
+    provider = get_risk_provider()
+    if isinstance(provider, MLRiskProvider):
+        await provider.close_session(call_id)
+    return result
+
+
+@router.post("/{call_id}/audio", status_code=status.HTTP_202_ACCEPTED)
+async def ingest_audio(call_id: str, request: Request, service: CallService = Depends(get_call_service), registry: AudioSessionRegistry = Depends(get_audio_session_registry)) -> object:
+    """Accepts one complete WAV/FLAC container for a live runtime session."""
+    session = service.get(call_id)
+    if session.status is not CallStatus.LIVE:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Call is {session.status}, not LIVE")
+    sequence_header = request.headers.get("x-audio-chunk-sequence")
+    try:
+        chunk_sequence = int(sequence_header or "")
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="X-Audio-Chunk-Sequence must be an integer") from error
+    try:
+        container = await read_limited_body(request)
+        preprocessing_started = time.perf_counter()
+        canonical = await asyncio.to_thread(decode_and_canonicalize, container, request.headers.get("content-type", ""))
+        acknowledgement = registry.ingest_canonical(call_id, canonical, chunk_sequence)
+        return replace(acknowledgement, preprocessing_ms=(time.perf_counter() - preprocessing_started) * 1000)
+    except AudioConversionError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    except SessionClosedError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
 
 
 @router.websocket("/{call_id}/risk-stream")
@@ -80,13 +159,32 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
         await websocket.close(code=WS_CALL_NOT_LIVE, reason=f"Call is {session.status}, not LIVE")
         return
 
-    interval_seconds = get_settings().risk_emit_interval_ms / 1000
+    provider = get_risk_provider()
+    runtime_session = None
+    if isinstance(provider, MLRiskProvider):
+        runtime_session = get_audio_session_registry().get(call_id)
+        if runtime_session is None:
+            await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML runtime session is not registered")
+            return
+        if not get_audio_session_registry().claim_stream(call_id, runtime_session.generation_token):
+            await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML risk stream already has an active consumer")
+            return
+    else:
+        from app.services.async_session import AsyncCallSession
+
+        runtime_session = AsyncCallSession(call_id)
+    stream_session = runtime_session if isinstance(provider, MLRiskProvider) else session
+    cancellation = asyncio.Event()
     try:
-        for index, event in enumerate(get_risk_provider().stream(session)):
-            if index:
-                await asyncio.sleep(interval_seconds)
-            await websocket.send_json(event.model_dump(mode="json"))
+        async for event in provider.stream(stream_session, cancellation):
+            await websocket.send_json(event.model_dump(mode="json", exclude_none=True))
         await websocket.close()
-    except (WebSocketDisconnect, RuntimeError):
+    except WebSocketDisconnect:
         # Client hung up mid-stream; nothing to clean up beyond stopping.
         return
+    except Exception as error:
+        await websocket.close(code=1011, reason=f"ML risk stream failed: {error}")
+    finally:
+        cancellation.set()
+        if isinstance(provider, MLRiskProvider) and runtime_session is not None:
+            get_audio_session_registry().release_stream(call_id, runtime_session.generation_token)

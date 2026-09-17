@@ -10,7 +10,7 @@ console at runtime.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -34,6 +34,13 @@ class RecommendedAction(StrEnum):
     REQUIRE_VOICE_CHALLENGE = "REQUIRE_VOICE_CHALLENGE"
     REQUIRE_SUPERVISOR = "REQUIRE_SUPERVISOR"
     BLOCK_ACTION = "BLOCK_ACTION"
+
+
+class EvidenceAvailability(StrEnum):
+    """Whether a detector dimension was evaluated for an event."""
+
+    MEASURED = "MEASURED"
+    NOT_EVALUATED = "NOT_EVALUATED"
 
 
 def risk_level_for(score: int) -> RiskLevel:
@@ -66,6 +73,11 @@ class LiveRiskEvent(BaseModel):
     risk_level: RiskLevel
     reasons: list[str]
     recommended_action: RecommendedAction
+    inference_latency_ms: float | None = Field(default=None, ge=0.0)
+    provider_round_trip_ms: float | None = Field(default=None, ge=0.0)
+    preprocessing_latency_ms: float | None = Field(default=None, ge=0.0)
+    synthetic_score_semantics: Literal["uncalibrated"] | None = None
+    evidence_availability: dict[str, EvidenceAvailability] | None = None
 
     @model_validator(mode="after")
     def _check_frontend_invariants(self) -> LiveRiskEvent:

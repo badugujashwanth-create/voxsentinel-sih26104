@@ -1,11 +1,11 @@
 """Risk scoring providers.
 
-``RiskProvider`` is the seam the future ``MLRiskProvider`` plugs into. The API
-and WebSocket layers only ever see this interface, so swapping the demo engine
-for real inference does not touch routing code.
+``RiskProvider`` is the seam shared by ``MockRiskProvider`` and
+``MLRiskProvider``. The API and WebSocket layers only ever see this interface,
+so the explicit demo engine and real spoof-evidence engine remain isolated.
 
-Everything ``MockRiskProvider`` returns is HAND-WRITTEN DEMO DATA. It performs
-no audio analysis and no inference of any kind.
+Everything ``MockRiskProvider`` returns is HAND-WRITTEN DEMO DATA. The ML
+provider is the separate path for AASIST-derived spoof evidence.
 
 The scenario tables below mirror ``SCENARIOS`` in
 ``frontend/src/scenarios/scenarios.ts`` field for field, so the console renders
@@ -16,11 +16,18 @@ backend. If the fixtures there change, change these to match.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+import asyncio
+from collections.abc import AsyncIterator
+import time
 from dataclasses import dataclass, field
 
 from app.models.call import CallSession, ScenarioId
 from app.models.risk import LiveRiskEvent, RecommendedAction, risk_level_for
+from app.models.risk import EvidenceAvailability
+from app.services.async_session import AsyncCallSession, AudioSessionRegistry, SessionClosedError
+from app.services.ml_risk_policy import MLRiskPolicy
+from app.services.spoof_aggregation import TemporalSpoofAggregator
+from app.services.ml_service_client import MLServiceClient
 
 #: Spacing between scenario events, mirroring ``EVENT_INTERVAL_MS`` in
 #: ``frontend/src/scenarios/scenarios.ts``. This fixes ``timestamp_ms`` in the
@@ -129,17 +136,25 @@ class RiskProvider(ABC):
     """Produces the live risk events for one call session."""
 
     @abstractmethod
-    def stream(self, session: CallSession) -> Iterator[LiveRiskEvent]:
-        """Yields risk events in ascending sequence order for ``session``."""
+    def stream(self, session: CallSession, cancellation: asyncio.Event) -> AsyncIterator[LiveRiskEvent]:
+        """Yields risk events asynchronously in ascending sequence order."""
 
 
 class MockRiskProvider(RiskProvider):
     """Replays a scripted scenario. DEMO DATA ONLY - no audio, no inference."""
 
-    def stream(self, session: CallSession) -> Iterator[LiveRiskEvent]:
+    def __init__(self, emit_interval_ms: int = SCENARIO_EVENT_INTERVAL_MS) -> None:
+        """Configures deterministic pacing for the mock stream."""
+        self.emit_interval_ms = emit_interval_ms
+
+    async def stream(self, session: CallSession, cancellation: asyncio.Event) -> AsyncIterator[LiveRiskEvent]:
         """Yields the scripted events for the session's scenario."""
         for index, step in enumerate(SCENARIO_STEPS[session.scenario], start=1):
+            if cancellation.is_set():
+                return
             yield self._to_event(session.call_id, index, step)
+            if index < len(SCENARIO_STEPS[session.scenario]) and self.emit_interval_ms:
+                await asyncio.sleep(self.emit_interval_ms / 1000)
 
     @staticmethod
     def _to_event(call_id: str, sequence: int, step: ScenarioStep) -> LiveRiskEvent:
@@ -159,3 +174,74 @@ class MockRiskProvider(RiskProvider):
             reasons=list(step.reasons),
             recommended_action=step.recommended_action,
         )
+
+
+class MLRiskProvider(RiskProvider):
+    """Consumes shared canonical windows and emits real spoof-derived events."""
+
+    def __init__(self, registry: AudioSessionRegistry, client: MLServiceClient) -> None:
+        """Creates a provider over one shared runtime-session registry."""
+        self.registry = registry
+        self.client = client
+
+    async def prepare_session(self, call_id: str) -> AsyncCallSession:
+        """Checks model readiness before registering exactly one call session."""
+        await self.client.health()
+        return self.registry.register(call_id)
+
+    async def close_session(self, call_id: str, generation_token: str | None = None) -> None:
+        """Closes and removes one runtime session idempotently."""
+        await self.registry.close(call_id, generation_token)
+        self.registry.remove(call_id, generation_token)
+
+    async def stream(self, session: CallSession | AsyncCallSession, cancellation: asyncio.Event) -> AsyncIterator[LiveRiskEvent]:
+        """Consumes the registered session queue and emits policy events asynchronously."""
+        if not isinstance(session, AsyncCallSession):
+            raise ValueError("MLRiskProvider requires an AsyncCallSession")
+        registered = self.registry.get(session.call_id)
+        if registered is not session:
+            raise ValueError("session is not the current registered runtime session")
+        if session.spoof_aggregator is None:
+            session.spoof_aggregator = TemporalSpoofAggregator()
+        if session.risk_policy is None:
+            session.risk_policy = MLRiskPolicy()
+        aggregator = session.spoof_aggregator
+        policy = session.risk_policy
+        while not cancellation.is_set():
+            try:
+                window = await session.next_window()
+            except SessionClosedError:
+                return
+            inference_started = time.perf_counter()
+            evidence = await self.client.infer(window.samples)
+            if cancellation.is_set() or not self.registry.is_current(session.call_id, session.generation_token):
+                return
+            aggregate = aggregator.add(evidence)
+            decision = policy.evaluate(aggregate.threshold_state)
+            session.event_sequence += 1
+            yield LiveRiskEvent(
+                call_id=session.call_id,
+                sequence=session.event_sequence,
+                timestamp_ms=int(time.time() * 1000),
+                synthetic_probability=evidence.raw_spoof_score,
+                speaker_match_score=0.0,
+                speaker_mismatch_score=0.0,
+                prosody_anomaly_score=0.0,
+                replay_risk_score=0.0,
+                context_risk_score=0.0,
+                overall_risk_score=decision.score,
+                risk_level=decision.level,
+                reasons=list(decision.reasons),
+                recommended_action=decision.action,
+                inference_latency_ms=evidence.inference_ms,
+                provider_round_trip_ms=(time.perf_counter() - inference_started) * 1000,
+                preprocessing_latency_ms=evidence.preprocessing_ms,
+                synthetic_score_semantics="uncalibrated",
+                evidence_availability={
+                    "speaker_match_score": EvidenceAvailability.NOT_EVALUATED,
+                    "speaker_mismatch_score": EvidenceAvailability.NOT_EVALUATED,
+                    "prosody_anomaly_score": EvidenceAvailability.NOT_EVALUATED,
+                    "replay_risk_score": EvidenceAvailability.NOT_EVALUATED,
+                    "context_risk_score": EvidenceAvailability.NOT_EVALUATED,
+                },
+            )

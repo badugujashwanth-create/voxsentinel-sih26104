@@ -4,6 +4,7 @@ import type { RiskStreamHandlers, RiskStreamSource } from "./RiskStreamSource";
 const RISK_STREAM_PATH = "/api/v1/calls";
 export const WS_UNKNOWN_CALL = 4404;
 export const WS_CALL_NOT_LIVE = 4409;
+export const WS_ML_FAILURE = 1011;
 
 /** Connects the console to the future backend risk stream contract. */
 export class WebSocketRiskStreamSource implements RiskStreamSource {
@@ -33,6 +34,7 @@ export class WebSocketRiskStreamSource implements RiskStreamSource {
     this.socket.onclose = (event) => {
       if (event?.code === WS_UNKNOWN_CALL) this.reportError(new Error("Backend call was not found (4404)"));
       if (event?.code === WS_CALL_NOT_LIVE) this.reportError(new Error("Backend call is not live (4409)"));
+      if (event?.code === WS_ML_FAILURE) this.reportError(new Error(event.reason || "ML risk stream failed"));
       this.emitStatus("DISCONNECTED");
     };
   }
