@@ -32,7 +32,7 @@ def get_risk_provider() -> RiskProvider:
 
     Swapping the demo engine for real inference happens here and nowhere else.
     """
-    return MockRiskProvider()
+    return MockRiskProvider(emit_interval_ms=get_settings().risk_emit_interval_ms)
 
 
 def get_call_service(store: SessionStore = Depends(get_session_store)) -> CallService:
@@ -80,13 +80,13 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
         await websocket.close(code=WS_CALL_NOT_LIVE, reason=f"Call is {session.status}, not LIVE")
         return
 
-    interval_seconds = get_settings().risk_emit_interval_ms / 1000
+    cancellation = asyncio.Event()
     try:
-        for index, event in enumerate(get_risk_provider().stream(session)):
-            if index:
-                await asyncio.sleep(interval_seconds)
+        async for event in get_risk_provider().stream(session, cancellation):
             await websocket.send_json(event.model_dump(mode="json"))
         await websocket.close()
     except (WebSocketDisconnect, RuntimeError):
         # Client hung up mid-stream; nothing to clean up beyond stopping.
         return
+    finally:
+        cancellation.set()

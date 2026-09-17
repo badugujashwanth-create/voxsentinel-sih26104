@@ -16,7 +16,8 @@ backend. If the fixtures there change, change these to match.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+import asyncio
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
 from app.models.call import CallSession, ScenarioId
@@ -129,17 +130,25 @@ class RiskProvider(ABC):
     """Produces the live risk events for one call session."""
 
     @abstractmethod
-    def stream(self, session: CallSession) -> Iterator[LiveRiskEvent]:
-        """Yields risk events in ascending sequence order for ``session``."""
+    def stream(self, session: CallSession, cancellation: asyncio.Event) -> AsyncIterator[LiveRiskEvent]:
+        """Yields risk events asynchronously in ascending sequence order."""
 
 
 class MockRiskProvider(RiskProvider):
     """Replays a scripted scenario. DEMO DATA ONLY - no audio, no inference."""
 
-    def stream(self, session: CallSession) -> Iterator[LiveRiskEvent]:
+    def __init__(self, emit_interval_ms: int = SCENARIO_EVENT_INTERVAL_MS) -> None:
+        """Configures deterministic pacing for the mock stream."""
+        self.emit_interval_ms = emit_interval_ms
+
+    async def stream(self, session: CallSession, cancellation: asyncio.Event) -> AsyncIterator[LiveRiskEvent]:
         """Yields the scripted events for the session's scenario."""
         for index, step in enumerate(SCENARIO_STEPS[session.scenario], start=1):
+            if cancellation.is_set():
+                return
             yield self._to_event(session.call_id, index, step)
+            if index < len(SCENARIO_STEPS[session.scenario]) and self.emit_interval_ms:
+                await asyncio.sleep(self.emit_interval_ms / 1000)
 
     @staticmethod
     def _to_event(call_id: str, sequence: int, step: ScenarioStep) -> LiveRiskEvent:
