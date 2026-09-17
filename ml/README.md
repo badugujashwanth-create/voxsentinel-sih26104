@@ -12,8 +12,8 @@ Voice spoof / deepfake detection for VoxSentinel.
 > It is **not** a fraud decision, **not** an identity decision, and **not** a
 > VoxSentinel 0-100 risk score. Speaker verification, prosody, and transaction
 > context are separate signals, and fusing them into a final risk number is a
-> later task. Nothing here is wired into the live backend yet:
-> `MockRiskProvider` is still what serves the demo.
+> later task. JASH-004 exposes a stateless local inference service for raw
+> spoof evidence; backend call policy remains outside this subsystem.
 
 ## Contents
 
@@ -30,6 +30,7 @@ Voice spoof / deepfake detection for VoxSentinel.
 | `scripts/prepare_eval_set.py` | rebuild the evaluation audio from the manifest |
 | `scripts/build_eval_manifest.py` | author the manifest (run once; output committed) |
 | `scripts/benchmark_latency.py` | measured latency on this machine |
+| `runtime/` | stateless exact-window inference service for the backend |
 | `evaluation/eval_manifest.json` | the 80 samples with provenance and hashes |
 | `evaluation/predictions.csv` | per-sample evidence for the published metrics |
 | `evaluation/evaluation_results.json` | summary derived from those predictions |
@@ -175,6 +176,25 @@ python -m pytest tests/ml
 ```
 
 ## Inference
+
+### Local service
+
+Start the loopback service from the isolated ML environment after installing and
+verifying the checkpoint:
+
+```bash
+ml/.venv/bin/uvicorn ml.runtime.server:app --host 127.0.0.1 --port 8010
+```
+
+`GET /health` is a model-readiness check. It is ready only when the verified
+AASIST definition and checkpoint are loaded. `POST /v1/spoof/infer` accepts one
+backend-canonical window: mono, 16 kHz, little-endian float32, exactly 64600
+samples. The service validates that contract and does not resample, downmix,
+pad, truncate, or re-window it.
+
+The service is stateless between requests. It reports an **uncalibrated** raw
+spoof-model score and latency; it does not aggregate windows or decide call
+risk.
 
 ```bash
 ml/.venv/bin/python ml/scripts/detect.py --audio path/to/sample.wav

@@ -40,5 +40,9 @@ piper-tts==1.8.0
 # unpinned version is an uncontrolled variable in any reproducibility claim.
 onnxruntime==1.30.0
 
+# --- Local inference service ------------------------------------------------
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+
 # --- Tests ------------------------------------------------------------------
 pytest==9.1.1

@@ -148,3 +148,29 @@ class AASISTSpoofDetector(SpoofDetector):
             sample_rate=AASIST_SAMPLE_RATE,
             warnings=tuple([*prepared.warnings, *pad_warnings]),
         )
+
+    def score_model_window(self, samples: np.ndarray) -> SpoofResult:
+        """Scores one backend-canonical exact model window without reprocessing it."""
+        if not isinstance(samples, np.ndarray) or samples.ndim != 1 or samples.shape[0] != AASIST_INPUT_SAMPLES:
+            raise ValueError(f"samples must contain exactly {AASIST_INPUT_SAMPLES} values")
+        if samples.dtype != np.dtype("float32") or not np.isfinite(samples).all():
+            raise ValueError("samples must be finite float32 values")
+        contiguous_samples = np.ascontiguousarray(samples, dtype=np.float32)
+        tensor = torch.from_numpy(contiguous_samples).unsqueeze(0).to(self._device)
+        inference_start = time.perf_counter()
+        with torch.no_grad():
+            _, logits = self._model(tensor)
+        inference_seconds = time.perf_counter() - inference_start
+        scores = logits.squeeze(0).float().cpu()
+        probabilities = torch.softmax(scores, dim=0)
+        return SpoofResult(
+            synthetic_probability=float(probabilities[SPOOF_INDEX]),
+            bonafide_score=float(scores[BONAFIDE_INDEX]),
+            raw_scores=tuple(float(value) for value in scores),
+            model_id=self.model_id,
+            inference_seconds=inference_seconds,
+            preprocessing_seconds=0.0,
+            audio_duration_seconds=AASIST_INPUT_SAMPLES / AASIST_SAMPLE_RATE,
+            sample_rate=AASIST_SAMPLE_RATE,
+            warnings=(),
+        )
