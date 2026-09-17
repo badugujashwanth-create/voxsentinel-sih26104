@@ -1,0 +1,81 @@
+sample_id,ground_truth,model_score,predicted_label,duration_seconds,inference_ms,warnings
+genuine_000,bonafide,0.0006561989,bonafide,5.8550,417.688,truncated 5.86s of audio to the model's 4.04s window
+genuine_001,bonafide,0.0718955249,bonafide,14.5500,334.024,truncated 14.55s of audio to the model's 4.04s window
+genuine_002,bonafide,0.0395901576,bonafide,14.6750,361.544,truncated 14.68s of audio to the model's 4.04s window
+genuine_003,bonafide,0.0013405515,bonafide,4.5300,372.021,truncated 4.53s of audio to the model's 4.04s window
+genuine_004,bonafide,0.6695126891,spoof,11.0500,354.389,truncated 11.05s of audio to the model's 4.04s window
+genuine_005,bonafide,0.2094443887,bonafide,14.9500,350.306,truncated 14.95s of audio to the model's 4.04s window
+genuine_006,bonafide,0.0076197935,bonafide,6.7150,430.238,truncated 6.71s of audio to the model's 4.04s window
+genuine_007,bonafide,0.0002038102,bonafide,9.0200,730.337,truncated 9.02s of audio to the model's 4.04s window
+genuine_008,bonafide,0.0001512160,bonafide,23.1750,605.461,truncated 23.18s of audio to the model's 4.04s window
+genuine_009,bonafide,0.0159525797,bonafide,9.8100,410.549,truncated 9.81s of audio to the model's 4.04s window
+genuine_010,bonafide,0.0020725490,bonafide,15.5050,357.929,truncated 15.51s of audio to the model's 4.04s window
+genuine_011,bonafide,0.0064629288,bonafide,6.5950,371.276,truncated 6.59s of audio to the model's 4.04s window
+genuine_012,bonafide,0.0000825230,bonafide,13.3050,394.391,truncated 13.30s of audio to the model's 4.04s window
+genuine_013,bonafide,0.0353507958,bonafide,6.2600,405.558,truncated 6.26s of audio to the model's 4.04s window
+genuine_014,bonafide,0.0007751782,bonafide,11.4800,364.717,truncated 11.48s of audio to the model's 4.04s window
+genuine_015,bonafide,0.0111372210,bonafide,4.8000,375.576,truncated 4.80s of audio to the model's 4.04s window
+genuine_016,bonafide,0.0148841776,bonafide,20.8600,347.526,truncated 20.86s of audio to the model's 4.04s window
+genuine_017,bonafide,0.2028405815,bonafide,10.5000,331.431,truncated 10.50s of audio to the model's 4.04s window
+genuine_018,bonafide,0.2400881648,bonafide,27.9900,320.767,truncated 27.99s of audio to the model's 4.04s window
+genuine_019,bonafide,0.0022711060,bonafide,19.8900,346.779,truncated 19.89s of audio to the model's 4.04s window
+genuine_020,bonafide,0.0031680504,bonafide,14.1400,341.808,truncated 14.14s of audio to the model's 4.04s window
+genuine_021,bonafide,0.0002247046,bonafide,8.8300,341.291,truncated 8.83s of audio to the model's 4.04s window
+genuine_022,bonafide,0.7406562567,spoof,9.4800,350.733,truncated 9.48s of audio to the model's 4.04s window
+genuine_023,bonafide,0.0001061563,bonafide,20.2200,341.008,truncated 20.22s of audio to the model's 4.04s window
+genuine_024,bonafide,0.0001213722,bonafide,10.0250,339.784,truncated 10.03s of audio to the model's 4.04s window
+genuine_025,bonafide,0.0030567094,bonafide,9.8750,333.081,truncated 9.88s of audio to the model's 4.04s window
+genuine_026,bonafide,0.0010604040,bonafide,10.9600,316.894,truncated 10.96s of audio to the model's 4.04s window
+genuine_027,bonafide,0.0000834705,bonafide,8.7300,315.913,truncated 8.73s of audio to the model's 4.04s window
+genuine_028,bonafide,0.0001306369,bonafide,6.9500,325.309,truncated 6.95s of audio to the model's 4.04s window
+genuine_029,bonafide,0.0869495645,bonafide,7.8850,384.085,truncated 7.88s of audio to the model's 4.04s window
+genuine_030,bonafide,0.0029369965,bonafide,4.5000,350.583,truncated 4.50s of audio to the model's 4.04s window
+genuine_031,bonafide,0.0007399907,bonafide,4.8250,321.307,truncated 4.83s of audio to the model's 4.04s window
+genuine_032,bonafide,0.0022751011,bonafide,11.0550,328.981,truncated 11.05s of audio to the model's 4.04s window
+genuine_033,bonafide,0.0000112242,bonafide,6.0250,411.998,truncated 6.03s of audio to the model's 4.04s window
+genuine_034,bonafide,0.0234706867,bonafide,5.0600,387.703,truncated 5.06s of audio to the model's 4.04s window
+genuine_035,bonafide,0.0000473406,bonafide,7.5600,404.864,truncated 7.56s of audio to the model's 4.04s window
+genuine_036,bonafide,0.8308137655,spoof,9.1600,343.831,truncated 9.16s of audio to the model's 4.04s window
+genuine_037,bonafide,0.9580247998,spoof,10.2200,328.786,truncated 10.22s of audio to the model's 4.04s window
+genuine_038,bonafide,0.0039087296,bonafide,13.6900,342.225,truncated 13.69s of audio to the model's 4.04s window
+genuine_039,bonafide,0.0746426731,bonafide,14.6500,328.069,truncated 14.65s of audio to the model's 4.04s window
+synthetic_000,spoof,0.5589081049,spoof,4.8066,339.683,resampled 22050Hz to 16000Hz; truncated 4.81s of audio to the model's 4.04s window
+synthetic_001,spoof,0.5710529685,spoof,4.8530,357.567,resampled 22050Hz to 16000Hz; truncated 4.85s of audio to the model's 4.04s window
+synthetic_002,spoof,0.9766559005,spoof,4.5976,392.791,resampled 22050Hz to 16000Hz; truncated 4.60s of audio to the model's 4.04s window
+synthetic_003,spoof,0.3110865057,bonafide,4.8298,357.216,resampled 22050Hz to 16000Hz; truncated 4.83s of audio to the model's 4.04s window
+synthetic_004,spoof,0.9256658554,spoof,4.4466,444.262,resampled 22050Hz to 16000Hz; truncated 4.45s of audio to the model's 4.04s window
+synthetic_005,spoof,0.9649507999,spoof,5.0852,342.527,resampled 22050Hz to 16000Hz; truncated 5.09s of audio to the model's 4.04s window
+synthetic_006,spoof,0.0873447284,bonafide,4.5511,326.035,resampled 22050Hz to 16000Hz; truncated 4.55s of audio to the model's 4.04s window
+synthetic_007,spoof,0.9213284254,spoof,5.0156,329.504,resampled 22050Hz to 16000Hz; truncated 5.02s of audio to the model's 4.04s window
+synthetic_008,spoof,0.9905574322,spoof,4.5511,345.925,resampled 22050Hz to 16000Hz; truncated 4.55s of audio to the model's 4.04s window
+synthetic_009,spoof,0.1871136129,bonafide,7.3724,331.855,resampled 22050Hz to 16000Hz; truncated 7.37s of audio to the model's 4.04s window
+synthetic_010,spoof,0.9969152212,spoof,4.5511,325.078,resampled 22050Hz to 16000Hz; truncated 4.55s of audio to the model's 4.04s window
+synthetic_011,spoof,0.9638649225,spoof,5.3522,324.703,resampled 22050Hz to 16000Hz; truncated 5.35s of audio to the model's 4.04s window
+synthetic_012,spoof,0.8815272450,spoof,5.0039,393.306,resampled 22050Hz to 16000Hz; truncated 5.00s of audio to the model's 4.04s window
+synthetic_013,spoof,0.8725339174,spoof,4.8994,364.127,resampled 22050Hz to 16000Hz; truncated 4.90s of audio to the model's 4.04s window
+synthetic_014,spoof,0.9742093682,spoof,5.3638,343.205,resampled 22050Hz to 16000Hz; truncated 5.36s of audio to the model's 4.04s window
+synthetic_015,spoof,0.2882172465,bonafide,4.7601,332.563,resampled 22050Hz to 16000Hz; truncated 4.76s of audio to the model's 4.04s window
+synthetic_016,spoof,0.1054577380,bonafide,5.2013,335.553,resampled 22050Hz to 16000Hz; truncated 5.20s of audio to the model's 4.04s window
+synthetic_017,spoof,0.9668877721,spoof,4.5279,351.503,resampled 22050Hz to 16000Hz; truncated 4.53s of audio to the model's 4.04s window
+synthetic_018,spoof,0.7705214024,spoof,4.7717,318.657,resampled 22050Hz to 16000Hz; truncated 4.77s of audio to the model's 4.04s window
+synthetic_019,spoof,0.7458314300,spoof,4.1796,320.061,resampled 22050Hz to 16000Hz; truncated 4.18s of audio to the model's 4.04s window
+synthetic_020,spoof,0.9788507223,spoof,4.3306,337.157,resampled 22050Hz to 16000Hz; truncated 4.33s of audio to the model's 4.04s window
+synthetic_021,spoof,0.5575791597,spoof,5.2129,349.997,resampled 22050Hz to 16000Hz; truncated 5.21s of audio to the model's 4.04s window
+synthetic_022,spoof,0.8831098080,spoof,5.4916,348.958,resampled 22050Hz to 16000Hz; truncated 5.49s of audio to the model's 4.04s window
+synthetic_023,spoof,0.9987862706,spoof,5.0620,328.006,resampled 22050Hz to 16000Hz; truncated 5.06s of audio to the model's 4.04s window
+synthetic_024,spoof,0.9821778536,spoof,4.6092,331.411,resampled 22050Hz to 16000Hz; truncated 4.61s of audio to the model's 4.04s window
+synthetic_025,spoof,0.9901726246,spoof,4.7021,328.323,resampled 22050Hz to 16000Hz; truncated 4.70s of audio to the model's 4.04s window
+synthetic_026,spoof,0.6949055791,spoof,5.1897,380.975,resampled 22050Hz to 16000Hz; truncated 5.19s of audio to the model's 4.04s window
+synthetic_027,spoof,0.8724092841,spoof,4.9111,325.081,resampled 22050Hz to 16000Hz; truncated 4.91s of audio to the model's 4.04s window
+synthetic_028,spoof,0.9930798411,spoof,5.6773,343.211,resampled 22050Hz to 16000Hz; truncated 5.68s of audio to the model's 4.04s window
+synthetic_029,spoof,0.9806468487,spoof,5.2709,438.079,resampled 22050Hz to 16000Hz; truncated 5.27s of audio to the model's 4.04s window
+synthetic_030,spoof,0.4783052802,bonafide,4.7833,384.013,resampled 22050Hz to 16000Hz; truncated 4.78s of audio to the model's 4.04s window
+synthetic_031,spoof,0.1289596111,bonafide,5.0504,359.974,resampled 22050Hz to 16000Hz; truncated 5.05s of audio to the model's 4.04s window
+synthetic_032,spoof,0.9963234663,spoof,3.6920,391.419,"resampled 22050Hz to 16000Hz; audio was 3.69s; tiled 2x to fill the model's 4.04s window, which weakens the result"
+synthetic_033,spoof,0.1934065521,bonafide,5.3871,362.586,resampled 22050Hz to 16000Hz; truncated 5.39s of audio to the model's 4.04s window
+synthetic_034,spoof,0.9964209795,spoof,4.5279,440.197,resampled 22050Hz to 16000Hz; truncated 4.53s of audio to the model's 4.04s window
+synthetic_035,spoof,0.9656128287,spoof,5.0039,355.947,resampled 22050Hz to 16000Hz; truncated 5.00s of audio to the model's 4.04s window
+synthetic_036,spoof,0.7913406491,spoof,5.4916,326.694,resampled 22050Hz to 16000Hz; truncated 5.49s of audio to the model's 4.04s window
+synthetic_037,spoof,0.9967268705,spoof,4.4815,341.276,resampled 22050Hz to 16000Hz; truncated 4.48s of audio to the model's 4.04s window
+synthetic_038,spoof,0.2826369703,bonafide,7.5581,347.470,resampled 22050Hz to 16000Hz; truncated 7.56s of audio to the model's 4.04s window
+synthetic_039,spoof,0.7131437659,spoof,4.6208,343.859,resampled 22050Hz to 16000Hz; truncated 4.62s of audio to the model's 4.04s window

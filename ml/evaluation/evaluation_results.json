@@ -1,0 +1,52 @@
+{
+  "model": "AASIST/AASIST.pth@ASVspoof2019-LA",
+  "threshold": 0.5,
+  "threshold_note": "Provisional midpoint, not tuned on a dev set.",
+  "score_note": "Uncalibrated softmax output of the spoof class. Not a probability that audio is fake, and not a VoxSentinel risk score.",
+  "n": 80,
+  "counts": {
+    "bonafide": 40,
+    "spoof": 40
+  },
+  "confusion_matrix": {
+    "true_positive": 31,
+    "false_positive": 4,
+    "true_negative": 36,
+    "false_negative": 9,
+    "positive_class": "spoof"
+  },
+  "metrics": {
+    "accuracy": 0.8375,
+    "precision": 0.8857142857142857,
+    "recall": 0.775,
+    "f1": 0.8266666666666667,
+    "eer": 0.125,
+    "eer_threshold": 0.24008816480636597
+  },
+  "score_distribution": {
+    "bonafide": {
+      "n": 40,
+      "min": 1.1224228728679009e-05,
+      "median": 0.003112379927188158,
+      "max": 0.958024799823761,
+      "stdev": 0.24365076236214103
+    },
+    "spoof": {
+      "n": 40,
+      "min": 0.08734472841024399,
+      "median": 0.882318526506424,
+      "max": 0.9987862706184387,
+      "stdev": 0.30898124789699666
+    }
+  },
+  "underpowered": true,
+  "caveats": [
+    "80 samples only (40 genuine / 40 synthetic).",
+    "One genuine corpus (LibriSpeech dev-clean) and one TTS family (Piper VITS, en_US-libritts_r).",
+    "Exploratory engineering evaluation, NOT a benchmark and NOT production accuracy.",
+    "The model score is uncalibrated; it is not a probability that audio is fake.",
+    "Threshold 0.5 is provisional, not tuned on a dev set.",
+    "The reported EER is specific to this small evaluation set.",
+    "No multilingual validation. No telephony-channel or codec validation. No replay/PA evaluation."
+  ]
+}
