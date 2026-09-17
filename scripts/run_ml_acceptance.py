@@ -12,6 +12,7 @@ import httpx
 import websockets
 
 SUPPORTED_SUFFIXES = {".wav": "audio/wav", ".flac": "audio/flac"}
+MINIMUM_ACCEPTANCE_OBSERVATIONS = 2
 
 
 async def run_acceptance(base_url: str, audio_path: Path, scenario: str) -> list[dict[str, object]]:
@@ -32,11 +33,11 @@ async def run_acceptance(base_url: str, audio_path: Path, scenario: str) -> list
                 headers={"Content-Type": SUPPORTED_SUFFIXES[audio_path.suffix.lower()], "X-Audio-Chunk-Sequence": "1"},
             ))
             events: list[dict[str, object]] = []
-            while True:
+            while len(events) < MINIMUM_ACCEPTANCE_OBSERVATIONS:
                 try:
                     events.append(json.loads(await asyncio.wait_for(socket.recv(), timeout=30)))
-                except (websockets.exceptions.ConnectionClosed, asyncio.TimeoutError):
-                    break
+                except (websockets.exceptions.ConnectionClosed, asyncio.TimeoutError) as error:
+                    raise RuntimeError("ML stream ended before two observations") from error
             response = await feed_task
             response.raise_for_status()
         await client.post(f"/api/v1/calls/{call_id}/stop")
