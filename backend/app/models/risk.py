@@ -36,6 +36,13 @@ class RecommendedAction(StrEnum):
     BLOCK_ACTION = "BLOCK_ACTION"
 
 
+class EvidenceAvailability(StrEnum):
+    """Whether a detector dimension was evaluated for an event."""
+
+    MEASURED = "MEASURED"
+    NOT_EVALUATED = "NOT_EVALUATED"
+
+
 def risk_level_for(score: int) -> RiskLevel:
     """Maps an overall 0-100 score to its severity band."""
     if score < 30:
@@ -66,6 +73,7 @@ class LiveRiskEvent(BaseModel):
     risk_level: RiskLevel
     reasons: list[str]
     recommended_action: RecommendedAction
+    evidence_availability: dict[str, EvidenceAvailability] | None = None
 
     @model_validator(mode="after")
     def _check_frontend_invariants(self) -> LiveRiskEvent:

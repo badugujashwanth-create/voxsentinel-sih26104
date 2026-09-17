@@ -11,7 +11,8 @@ from app.config import get_settings
 from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCallResponse
 from app.services.call_service import CallNotFoundError, CallService
 from app.services.async_session import AudioSessionRegistry, SessionClosedError
-from app.services.risk_provider import MockRiskProvider, RiskProvider
+from app.services.ml_service_client import MLServiceClient, MLServiceError
+from app.services.risk_provider import MLRiskProvider, MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
 
 #: Application-specific WebSocket close codes (4000-4999 is the private range).
@@ -39,7 +40,10 @@ def get_risk_provider() -> RiskProvider:
 
     Swapping the demo engine for real inference happens here and nowhere else.
     """
-    return MockRiskProvider(emit_interval_ms=get_settings().risk_emit_interval_ms)
+    settings = get_settings()
+    if settings.risk_provider_mode.value == "ml":
+        return MLRiskProvider(get_audio_session_registry(), MLServiceClient(settings.ml_service_url))
+    return MockRiskProvider(emit_interval_ms=settings.risk_emit_interval_ms)
 
 
 def get_call_service(store: SessionStore = Depends(get_session_store)) -> CallService:
@@ -60,15 +64,33 @@ def read_call(call_id: str, service: CallService = Depends(get_call_service)) ->
 
 
 @router.post("/{call_id}/start", response_model=CallSession)
-def start_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
+async def start_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
     """Moves a call from ``CREATED`` to ``LIVE``."""
-    return service.start(call_id)
+    provider = get_risk_provider()
+    runtime_session = None
+    if isinstance(provider, MLRiskProvider):
+        try:
+            runtime_session = await provider.prepare_session(call_id)
+        except MLServiceError as error:
+            raise ValueError(f"ML start unavailable: {error}") from error
+        except Exception as error:
+            raise ValueError(f"ML start failed: {error}") from error
+    try:
+        return service.start(call_id)
+    except Exception:
+        if isinstance(provider, MLRiskProvider) and runtime_session is not None:
+            await provider.close_session(call_id, runtime_session.generation_token)
+        raise
 
 
 @router.post("/{call_id}/stop", response_model=CallSession)
-def stop_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
+async def stop_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
     """Moves a live call to ``COMPLETED``."""
-    return service.stop(call_id)
+    result = service.stop(call_id)
+    provider = get_risk_provider()
+    if isinstance(provider, MLRiskProvider):
+        await provider.close_session(call_id)
+    return result
 
 
 @router.post("/{call_id}/audio", status_code=status.HTTP_202_ACCEPTED)
@@ -104,13 +126,27 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
         await websocket.close(code=WS_CALL_NOT_LIVE, reason=f"Call is {session.status}, not LIVE")
         return
 
+    provider = get_risk_provider()
+    runtime_session = None
+    if isinstance(provider, MLRiskProvider):
+        runtime_session = get_audio_session_registry().get(call_id)
+        if runtime_session is None:
+            await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML runtime session is not registered")
+            return
+    else:
+        from app.services.async_session import AsyncCallSession
+
+        runtime_session = AsyncCallSession(call_id)
+    stream_session = runtime_session if isinstance(provider, MLRiskProvider) else session
     cancellation = asyncio.Event()
     try:
-        async for event in get_risk_provider().stream(session, cancellation):
-            await websocket.send_json(event.model_dump(mode="json"))
+        async for event in provider.stream(stream_session, cancellation):
+            await websocket.send_json(event.model_dump(mode="json", exclude_none=True))
         await websocket.close()
     except (WebSocketDisconnect, RuntimeError):
         # Client hung up mid-stream; nothing to clean up beyond stopping.
         return
     finally:
         cancellation.set()
+        if isinstance(provider, MLRiskProvider) and runtime_session is not None:
+            await provider.close_session(call_id, runtime_session.generation_token)

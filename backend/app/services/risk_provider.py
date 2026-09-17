@@ -18,10 +18,16 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import AsyncIterator
+import time
 from dataclasses import dataclass, field
 
 from app.models.call import CallSession, ScenarioId
 from app.models.risk import LiveRiskEvent, RecommendedAction, risk_level_for
+from app.models.risk import EvidenceAvailability
+from app.services.async_session import AsyncCallSession, AudioSessionRegistry, SessionClosedError
+from app.services.ml_risk_policy import MLRiskPolicy
+from app.services.spoof_aggregation import TemporalSpoofAggregator
+from app.services.ml_service_client import MLServiceClient
 
 #: Spacing between scenario events, mirroring ``EVENT_INTERVAL_MS`` in
 #: ``frontend/src/scenarios/scenarios.ts``. This fixes ``timestamp_ms`` in the
@@ -168,3 +174,64 @@ class MockRiskProvider(RiskProvider):
             reasons=list(step.reasons),
             recommended_action=step.recommended_action,
         )
+
+
+class MLRiskProvider(RiskProvider):
+    """Consumes shared canonical windows and emits real spoof-derived events."""
+
+    def __init__(self, registry: AudioSessionRegistry, client: MLServiceClient) -> None:
+        """Creates a provider over one shared runtime-session registry."""
+        self.registry = registry
+        self.client = client
+
+    async def prepare_session(self, call_id: str) -> AsyncCallSession:
+        """Checks model readiness before registering exactly one call session."""
+        await self.client.health()
+        return self.registry.register(call_id)
+
+    async def close_session(self, call_id: str, generation_token: str | None = None) -> None:
+        """Closes and removes one runtime session idempotently."""
+        await self.registry.close(call_id, generation_token)
+        self.registry.remove(call_id, generation_token)
+
+    async def stream(self, session: CallSession | AsyncCallSession, cancellation: asyncio.Event) -> AsyncIterator[LiveRiskEvent]:
+        """Consumes the registered session queue and emits policy events asynchronously."""
+        if not isinstance(session, AsyncCallSession):
+            raise ValueError("MLRiskProvider requires an AsyncCallSession")
+        registered = self.registry.get(session.call_id)
+        if registered is not session:
+            raise ValueError("session is not the current registered runtime session")
+        aggregator = TemporalSpoofAggregator()
+        policy = MLRiskPolicy()
+        event_sequence = 0
+        while not cancellation.is_set():
+            try:
+                window = await session.next_window()
+            except SessionClosedError:
+                return
+            evidence = await self.client.infer(window.samples)
+            aggregate = aggregator.add(evidence)
+            decision = policy.evaluate(aggregate.threshold_state)
+            event_sequence += 1
+            yield LiveRiskEvent(
+                call_id=session.call_id,
+                sequence=event_sequence,
+                timestamp_ms=int(time.time() * 1000),
+                synthetic_probability=evidence.raw_spoof_score,
+                speaker_match_score=0.0,
+                speaker_mismatch_score=0.0,
+                prosody_anomaly_score=0.0,
+                replay_risk_score=0.0,
+                context_risk_score=0.0,
+                overall_risk_score=decision.score,
+                risk_level=decision.level,
+                reasons=list(decision.reasons),
+                recommended_action=decision.action,
+                evidence_availability={
+                    "speaker_match_score": EvidenceAvailability.NOT_EVALUATED,
+                    "speaker_mismatch_score": EvidenceAvailability.NOT_EVALUATED,
+                    "prosody_anomaly_score": EvidenceAvailability.NOT_EVALUATED,
+                    "replay_risk_score": EvidenceAvailability.NOT_EVALUATED,
+                    "context_risk_score": EvidenceAvailability.NOT_EVALUATED,
+                },
+            )
