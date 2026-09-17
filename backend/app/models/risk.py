@@ -10,7 +10,7 @@ console at runtime.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -73,6 +73,7 @@ class LiveRiskEvent(BaseModel):
     risk_level: RiskLevel
     reasons: list[str]
     recommended_action: RecommendedAction
+    synthetic_score_semantics: Literal["uncalibrated"] | None = None
     evidence_availability: dict[str, EvidenceAvailability] | None = None
 
     @model_validator(mode="after")

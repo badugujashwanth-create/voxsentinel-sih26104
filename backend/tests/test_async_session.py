@@ -56,6 +56,16 @@ def test_generation_token_invalidates_late_results() -> None:
     assert not registry.is_current("call-1", session.generation_token)
 
 
+def test_registry_allows_one_stream_claim_and_releases_it() -> None:
+    """One call cannot have competing queue consumers."""
+    registry = AudioSessionRegistry()
+    session = registry.register("call-1")
+    assert registry.claim_stream("call-1", session.generation_token)
+    assert not registry.claim_stream("call-1", session.generation_token)
+    registry.release_stream("call-1", session.generation_token)
+    assert registry.claim_stream("call-1", session.generation_token)
+
+
 def test_session_allocates_monotonic_window_sequences() -> None:
     """A runtime session owns window sequence allocation."""
     session = AsyncCallSession(call_id="call-1")

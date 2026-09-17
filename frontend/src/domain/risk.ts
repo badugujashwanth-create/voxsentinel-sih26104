@@ -28,6 +28,7 @@ export interface LiveRiskEvent {
   risk_level: RiskLevel;
   reasons: string[];
   recommended_action: RecommendedAction;
+  synthetic_score_semantics?: "uncalibrated";
   evidence_availability?: Record<string, EvidenceAvailability>;
 }
 
@@ -74,6 +75,9 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
       throw new Error("Risk event evidence_availability is invalid");
     }
   }
+  if (event.synthetic_score_semantics !== undefined && event.synthetic_score_semantics !== "uncalibrated") {
+    throw new Error("Risk event synthetic_score_semantics is invalid");
+  }
 
   return {
     call_id: event.call_id,
@@ -89,6 +93,7 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     risk_level: event.risk_level,
     reasons: [...event.reasons],
     recommended_action: event.recommended_action,
+    synthetic_score_semantics: event.synthetic_score_semantics,
     evidence_availability: event.evidence_availability ? { ...event.evidence_availability } : undefined,
   };
 }

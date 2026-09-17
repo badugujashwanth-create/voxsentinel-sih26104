@@ -41,6 +41,7 @@ class AsyncCallSession:
         self._next_window_sequence = 0
         self.last_chunk_sequence = 0
         self.window_scheduler: Any | None = None
+        self._stream_claimed = False
         self._closed = False
 
     @property
@@ -106,6 +107,20 @@ class AudioSessionRegistry:
         session = self.get(call_id)
         return session is not None and not session.is_closed and session.generation_token == generation_token
 
+    def claim_stream(self, call_id: str, generation_token: str) -> bool:
+        """Claims the sole stream consumer for an active runtime session."""
+        session = self.get(call_id)
+        if session is None or session.is_closed or session.generation_token != generation_token or session._stream_claimed:
+            return False
+        session._stream_claimed = True
+        return True
+
+    def release_stream(self, call_id: str, generation_token: str) -> None:
+        """Releases a stream claim without destroying the live call session."""
+        session = self.get(call_id)
+        if session is not None and session.generation_token == generation_token:
+            session._stream_claimed = False
+
     async def close(self, call_id: str, generation_token: str | None = None) -> None:
         """Closes the current session when its optional generation matches."""
         session = self.get(call_id)
@@ -123,6 +138,11 @@ class AudioSessionRegistry:
     def ingest(self, call_id: str, container: bytes, content_type: str, chunk_sequence: int) -> Any:
         """Canonicalizes one complete container and enqueues its model windows."""
         from app.services.audio_conversion import decode_and_canonicalize
+        canonical = decode_and_canonicalize(container, content_type)
+        return self.ingest_canonical(call_id, canonical, chunk_sequence)
+
+    def ingest_canonical(self, call_id: str, canonical: Any, chunk_sequence: int) -> Any:
+        """Enqueues already canonicalized audio on the event-loop-owned session."""
         from app.services.audio_ingestion import AudioIngestAcknowledgement
         from app.services.audio_windowing import AASISTWindowScheduler
 
@@ -131,7 +151,6 @@ class AudioSessionRegistry:
             raise SessionClosedError(f"session {call_id} is closed or not registered")
         if chunk_sequence <= session.last_chunk_sequence:
             raise ValueError("audio chunk sequence must increase")
-        canonical = decode_and_canonicalize(container, content_type)
         if session.window_scheduler is None:
             session.window_scheduler = AASISTWindowScheduler()
         windows = session.window_scheduler.push(canonical.samples)

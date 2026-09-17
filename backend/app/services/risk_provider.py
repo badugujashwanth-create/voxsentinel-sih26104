@@ -227,6 +227,7 @@ class MLRiskProvider(RiskProvider):
                 risk_level=decision.level,
                 reasons=list(decision.reasons),
                 recommended_action=decision.action,
+                synthetic_score_semantics="uncalibrated",
                 evidence_availability={
                     "speaker_match_score": EvidenceAvailability.NOT_EVALUATED,
                     "speaker_mismatch_score": EvidenceAvailability.NOT_EVALUATED,

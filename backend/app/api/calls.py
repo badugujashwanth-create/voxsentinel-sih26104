@@ -12,6 +12,7 @@ from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCa
 from app.services.call_service import CallNotFoundError, CallService
 from app.services.async_session import AudioSessionRegistry, SessionClosedError
 from app.services.audio_conversion import AudioConversionError
+from app.services.audio_conversion import decode_and_canonicalize
 from app.services.ml_service_client import MLServiceClient, MLServiceError
 from app.services.risk_provider import MLRiskProvider, MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
@@ -19,8 +20,29 @@ from app.state.session_store import SessionStore
 #: Application-specific WebSocket close codes (4000-4999 is the private range).
 WS_UNKNOWN_CALL = 4404
 WS_CALL_NOT_LIVE = 4409
+MAX_AUDIO_CONTAINER_BYTES = 25 * 1024 * 1024
 
 router = APIRouter(prefix="/api/v1/calls", tags=["calls"])
+
+
+async def read_limited_body(request: Request, maximum_bytes: int = MAX_AUDIO_CONTAINER_BYTES) -> bytes:
+    """Reads a request body with a bounded container size."""
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            declared_length = int(content_length)
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Content-Length must be an integer") from error
+        if declared_length < 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Content-Length must not be negative")
+        if declared_length > maximum_bytes:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="audio container is too large")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > maximum_bytes:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="audio container is too large")
+    return bytes(body)
 
 
 @lru_cache(maxsize=1)
@@ -106,7 +128,9 @@ async def ingest_audio(call_id: str, request: Request, service: CallService = De
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="X-Audio-Chunk-Sequence must be an integer") from error
     try:
-        return registry.ingest(call_id, await request.body(), request.headers.get("content-type", ""), chunk_sequence)
+        container = await read_limited_body(request)
+        canonical = await asyncio.to_thread(decode_and_canonicalize, container, request.headers.get("content-type", ""))
+        return registry.ingest_canonical(call_id, canonical, chunk_sequence)
     except AudioConversionError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
     except SessionClosedError as error:
@@ -138,6 +162,9 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
         if runtime_session is None:
             await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML runtime session is not registered")
             return
+        if not get_audio_session_registry().claim_stream(call_id, runtime_session.generation_token):
+            await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML risk stream already has an active consumer")
+            return
     else:
         from app.services.async_session import AsyncCallSession
 
@@ -154,4 +181,4 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
     finally:
         cancellation.set()
         if isinstance(provider, MLRiskProvider) and runtime_session is not None:
-            await provider.close_session(call_id, runtime_session.generation_token)
+            get_audio_session_registry().release_stream(call_id, runtime_session.generation_token)

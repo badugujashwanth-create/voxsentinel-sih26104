@@ -34,9 +34,11 @@ describe("risk domain", () => {
       speaker_match_score: 0, speaker_mismatch_score: 0, prosody_anomaly_score: 0,
       replay_risk_score: 0, context_risk_score: 0, overall_risk_score: 70,
       risk_level: "HIGH", reasons: ["review"], recommended_action: "REQUIRE_CALLBACK",
+      synthetic_score_semantics: "uncalibrated",
       evidence_availability: { speaker_match_score: "NOT_EVALUATED", context_risk_score: "NOT_EVALUATED" },
     };
     expect(validateLiveRiskEvent(event).evidence_availability?.speaker_match_score).toBe("NOT_EVALUATED");
+    expect(validateLiveRiskEvent(event).synthetic_score_semantics).toBe("uncalibrated");
   });
 
   it("rejects unknown evidence availability values", () => {

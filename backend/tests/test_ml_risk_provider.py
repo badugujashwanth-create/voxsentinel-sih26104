@@ -49,6 +49,7 @@ def test_two_persistent_windows_emit_elevated_review_without_blocking() -> None:
         assert events[-1].risk_level is RiskLevel.HIGH
         assert events[-1].recommended_action is RecommendedAction.REQUIRE_CALLBACK
         assert events[-1].speaker_match_score == 0.0
+        assert events[-1].synthetic_score_semantics == "uncalibrated"
         assert events[-1].evidence_availability["speaker_match_score"] == "NOT_EVALUATED"
         assert client.health_calls == 1
 

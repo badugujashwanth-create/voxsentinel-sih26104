@@ -7,7 +7,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.calls import get_risk_provider, get_session_store
+from app.api.calls import get_audio_session_registry, get_risk_provider, get_session_store
 from app.config import get_settings
 from app.main import create_app
 
@@ -23,6 +23,7 @@ def _reset_process_state() -> None:
     """Clears cached singletons so each test starts from a clean process."""
     get_settings.cache_clear()
     get_session_store.cache_clear()
+    get_audio_session_registry.cache_clear()
     get_risk_provider.cache_clear()
 
 
