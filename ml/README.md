@@ -114,22 +114,23 @@ Carried forward deliberately. None of these is addressed in this task.
 
 - **No replay / PA evaluation.** The LA track covers synthetic speech, not
   physical replay attacks. `replay_risk_score` remains unaddressed.
-- **Fixed 4.04 s window.** Longer audio is truncated.
-- **No cross-window aggregation.** Combining per-window scores across a call is
-  undefined; `audio/chunker.py` produces the windows but nothing consumes them.
+- **Fixed 4.04 s model window.** Backend streaming owns overlapping windows;
+  standalone file scoring retains its existing truncate/tile behavior.
+- **Backend-owned aggregation.** Cross-window policy is implemented by the
+  backend, not by this stateless model runtime.
 - **No calibration.** The output is a softmax score, not a calibrated likelihood.
 - **Provisional threshold.** 0.5 is an arbitrary midpoint.
 
 **Integration**
 
-- **No final RiskProvider integration.** There is no `MLRiskProvider`; the
-  backend still serves `MockRiskProvider`, and nothing here is wired into the
-  live risk pipeline.
+- JASH-004 provides raw spoof evidence to the backend `MLRiskProvider`. It does
+  not provide speaker verification, replay detection, prosody analysis, final
+  risk calibration, or automatic blocking.
 
 ## Setup
 
 The ML runtime is deliberately separate from `backend/requirements.txt`; the
-demo backend stays free of torch until `MLRiskProvider` lands.
+backend remains Torch-free while `MLRiskProvider` calls this loopback service.
 
 From a clean machine, at the repository root:
 

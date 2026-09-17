@@ -1,11 +1,11 @@
 """Risk scoring providers.
 
-``RiskProvider`` is the seam the future ``MLRiskProvider`` plugs into. The API
-and WebSocket layers only ever see this interface, so swapping the demo engine
-for real inference does not touch routing code.
+``RiskProvider`` is the seam shared by ``MockRiskProvider`` and
+``MLRiskProvider``. The API and WebSocket layers only ever see this interface,
+so the explicit demo engine and real spoof-evidence engine remain isolated.
 
-Everything ``MockRiskProvider`` returns is HAND-WRITTEN DEMO DATA. It performs
-no audio analysis and no inference of any kind.
+Everything ``MockRiskProvider`` returns is HAND-WRITTEN DEMO DATA. The ML
+provider is the separate path for AASIST-derived spoof evidence.
 
 The scenario tables below mirror ``SCENARIOS`` in
 ``frontend/src/scenarios/scenarios.ts`` field for field, so the console renders

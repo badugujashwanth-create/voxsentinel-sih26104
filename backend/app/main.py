@@ -14,7 +14,7 @@ from app.services.call_service import CallNotFoundError, InvalidTransitionError
 def create_app() -> FastAPI:
     """Builds the FastAPI application with routes and error mapping."""
     settings = get_settings()
-    app = FastAPI(title="VoxSentinel Backend", version="0.1.0", summary="Demo backend for the VoxSentinel live-call console. Risk output is mock data.")
+    app = FastAPI(title="VoxSentinel Backend", version="0.1.0", summary="Backend call lifecycle and configurable mock or ML risk streaming for the VoxSentinel console.")
 
     app.add_middleware(
         CORSMiddleware,
