@@ -39,6 +39,8 @@ class AsyncCallSession:
         self.generation_token = token_urlsafe(18)
         self.dropped_window_count = 0
         self._next_window_sequence = 0
+        self.last_chunk_sequence = 0
+        self.window_scheduler: Any | None = None
         self._closed = False
 
     @property
@@ -117,3 +119,29 @@ class AudioSessionRegistry:
         if session is None or (generation_token is not None and session.generation_token != generation_token):
             return
         self._sessions.pop(call_id, None)
+
+    def ingest(self, call_id: str, container: bytes, content_type: str, chunk_sequence: int) -> Any:
+        """Canonicalizes one complete container and enqueues its model windows."""
+        from app.services.audio_conversion import decode_and_canonicalize
+        from app.services.audio_ingestion import AudioIngestAcknowledgement
+        from app.services.audio_windowing import AASISTWindowScheduler
+
+        session = self.get(call_id)
+        if session is None or session.is_closed:
+            raise SessionClosedError(f"session {call_id} is closed or not registered")
+        if chunk_sequence <= session.last_chunk_sequence:
+            raise ValueError("audio chunk sequence must increase")
+        canonical = decode_and_canonicalize(container, content_type)
+        if session.window_scheduler is None:
+            session.window_scheduler = AASISTWindowScheduler()
+        windows = session.window_scheduler.push(canonical.samples)
+        for samples in windows:
+            session.enqueue_window(AudioWindow(session.allocate_window_sequence(), samples))
+        session.last_chunk_sequence = chunk_sequence
+        return AudioIngestAcknowledgement(
+            call_id=call_id,
+            chunk_sequence=chunk_sequence,
+            accepted_sample_count=int(canonical.samples.size),
+            windows_enqueued=len(windows),
+            dropped_window_count=session.dropped_window_count,
+        )

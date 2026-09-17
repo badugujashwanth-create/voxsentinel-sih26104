@@ -5,11 +5,12 @@ from __future__ import annotations
 import asyncio
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect, status
 
 from app.config import get_settings
 from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCallResponse
 from app.services.call_service import CallNotFoundError, CallService
+from app.services.async_session import AudioSessionRegistry, SessionClosedError
 from app.services.risk_provider import MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
 
@@ -24,6 +25,12 @@ router = APIRouter(prefix="/api/v1/calls", tags=["calls"])
 def get_session_store() -> SessionStore:
     """Returns the process-wide session store."""
     return SessionStore()
+
+
+@lru_cache(maxsize=1)
+def get_audio_session_registry() -> AudioSessionRegistry:
+    """Returns the process-wide audio runtime-session registry."""
+    return AudioSessionRegistry()
 
 
 @lru_cache(maxsize=1)
@@ -62,6 +69,23 @@ def start_call(call_id: str, service: CallService = Depends(get_call_service)) -
 def stop_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
     """Moves a live call to ``COMPLETED``."""
     return service.stop(call_id)
+
+
+@router.post("/{call_id}/audio", status_code=status.HTTP_202_ACCEPTED)
+async def ingest_audio(call_id: str, request: Request, service: CallService = Depends(get_call_service), registry: AudioSessionRegistry = Depends(get_audio_session_registry)) -> object:
+    """Accepts one complete WAV/FLAC container for a live runtime session."""
+    session = service.get(call_id)
+    if session.status is not CallStatus.LIVE:
+        raise ValueError(f"Call is {session.status}, not LIVE")
+    sequence_header = request.headers.get("x-audio-chunk-sequence")
+    try:
+        chunk_sequence = int(sequence_header or "")
+    except ValueError as error:
+        raise ValueError("X-Audio-Chunk-Sequence must be an integer") from error
+    try:
+        return registry.ingest(call_id, await request.body(), request.headers.get("content-type", ""), chunk_sequence)
+    except SessionClosedError as error:
+        raise ValueError(str(error)) from error
 
 
 @router.websocket("/{call_id}/risk-stream")
