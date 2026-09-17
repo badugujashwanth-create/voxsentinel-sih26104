@@ -26,6 +26,21 @@ numpy==2.3.4
 scipy==1.16.3
 soundfile==0.13.1
 
+# --- Speaker-verification runtime (ml/speaker/) -----------------------------
+# SpeechBrain supplies the ECAPA-TDNN definition and the feature front end that
+# ml/scripts/setup_ecapa.py's checkpoint loads into. Apache-2.0, same as the
+# checkpoint. Pinned: the model is constructed from the released hyperparams.yaml,
+# so a toolkit change is a change to the model this project runs.
+#
+# 1.1.0 or newer is required, not merely preferred: speechbrain <= 1.0.3 calls
+# torchaudio.list_audio_backends(), which torchaudio 2.9 removed, so the pair
+# below is the compatible one.
+speechbrain==1.1.0
+# speechbrain imports torchaudio at package import time. Nothing here decodes
+# audio with it -- ml/audio/preprocessing.py uses soundfile -- but the import
+# must resolve, and its version must match the torch pin above.
+torchaudio==2.9.1
+
 # --- Evaluation-set regeneration --------------------------------------------
 # Needed by ml/scripts/prepare_eval_set.py to re-synthesise the 40 synthetic
 # samples from the committed manifest. The detector itself never imports piper:
