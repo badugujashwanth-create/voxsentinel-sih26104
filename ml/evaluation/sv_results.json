@@ -1,0 +1,205 @@
+{
+  "model": "ECAPA-TDNN/spkrec-ecapa-voxceleb@0f99f2d0",
+  "similarity": "cosine of two L2-normalised ECAPA-TDNN embeddings",
+  "score_note": "UNCALIBRATED. Not a probability that two recordings share a speaker, and not a VoxSentinel risk score.",
+  "threshold": 0.55,
+  "threshold_note": {
+    "fitted_on": "librispeech",
+    "fitted_trials": 310,
+    "eer": 0.0,
+    "eer_sweep_threshold": 0.6208323418,
+    "lowest_genuine_score": 0.6208323418,
+    "highest_impostor_score": 0.4865551754,
+    "held_out": "cmu_arctic trials and all attack trials were not used to pick it",
+    "not_a_probability": "a cosine cut point, not a calibrated likelihood",
+    "rule": "the librispeech classes separate completely (EER 0), so the EER point is not unique: every cut point in (0.4866, 0.6208] scores the same. The midpoint of that gap is used, rounded to 2 decimals.",
+    "separating_interval": [
+      0.4865551754,
+      0.6208323418
+    ],
+    "margin": 0.13427716640000004
+  },
+  "counts": {
+    "trials": 442,
+    "speaker_verification_trials": 370,
+    "by_relation": {
+      "same_speaker": 74,
+      "different_speaker": 296,
+      "clone": 12,
+      "synthetic_non_target": 60
+    }
+  },
+  "overall": {
+    "positive_pairs": 74,
+    "negative_pairs": 296,
+    "confusion_matrix": {
+      "true_positive": 74,
+      "false_positive": 0,
+      "true_negative": 296,
+      "false_negative": 0,
+      "positive_class": "same_speaker"
+    },
+    "metrics": {
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_accept_rate": 0.0,
+      "false_reject_rate": 0.0,
+      "eer": 0.0,
+      "eer_threshold": 0.6208323418
+    },
+    "score_distribution": {
+      "same_speaker": {
+        "n": 74,
+        "min": 0.6208323418,
+        "median": 0.7872118188999999,
+        "mean": 0.777381489345946,
+        "max": 0.882875028,
+        "stdev": 0.06092898082139219
+      },
+      "different_speaker": {
+        "n": 296,
+        "min": -0.2037515799,
+        "median": 0.11972838385,
+        "mean": 0.11818431006891891,
+        "max": 0.4865551754,
+        "stdev": 0.10578381119556961
+      }
+    }
+  },
+  "by_corpus": {
+    "cmu_arctic": {
+      "positive_pairs": 12,
+      "negative_pairs": 48,
+      "confusion_matrix": {
+        "true_positive": 12,
+        "false_positive": 0,
+        "true_negative": 48,
+        "false_negative": 0,
+        "positive_class": "same_speaker"
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "false_accept_rate": 0.0,
+        "false_reject_rate": 0.0,
+        "eer": 0.0,
+        "eer_threshold": 0.7222728542
+      },
+      "score_distribution": {
+        "same_speaker": {
+          "n": 12,
+          "min": 0.7222728542,
+          "median": 0.80419839065,
+          "mean": 0.8013866260333332,
+          "max": 0.8586772018,
+          "stdev": 0.03528844940040244
+        },
+        "different_speaker": {
+          "n": 48,
+          "min": -0.0775788552,
+          "median": 0.09633113395,
+          "mean": 0.09953526276875001,
+          "max": 0.3317799316,
+          "stdev": 0.09006984606561941
+        }
+      }
+    },
+    "librispeech": {
+      "positive_pairs": 62,
+      "negative_pairs": 248,
+      "confusion_matrix": {
+        "true_positive": 62,
+        "false_positive": 0,
+        "true_negative": 248,
+        "false_negative": 0,
+        "positive_class": "same_speaker"
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "false_accept_rate": 0.0,
+        "false_reject_rate": 0.0,
+        "eer": 0.0,
+        "eer_threshold": 0.6208323418
+      },
+      "score_distribution": {
+        "same_speaker": {
+          "n": 62,
+          "min": 0.6208323418,
+          "median": 0.78350700335,
+          "mean": 0.7727353338580646,
+          "max": 0.882875028,
+          "stdev": 0.06389662654272486
+        },
+        "different_speaker": {
+          "n": 248,
+          "min": -0.2037515799,
+          "median": 0.12159902655,
+          "mean": 0.12179380309475807,
+          "max": 0.4865551754,
+          "stdev": 0.10835347361420819
+        }
+      }
+    }
+  },
+  "attacks": {
+    "clone": {
+      "n": 12,
+      "accepted_at_threshold": 12,
+      "acceptance_rate": 1.0,
+      "score_distribution": {
+        "n": 12,
+        "min": 0.6041181149,
+        "median": 0.6975252499,
+        "mean": 0.7140254247583333,
+        "max": 0.8243054072,
+        "stdev": 0.07493671330321865
+      }
+    },
+    "synthetic_non_target": {
+      "n": 60,
+      "accepted_at_threshold": 0,
+      "acceptance_rate": 0.0,
+      "score_distribution": {
+        "n": 60,
+        "min": -0.1070557075,
+        "median": 0.11181488045,
+        "mean": 0.11141301600833334,
+        "max": 0.3178047505,
+        "stdev": 0.08784198617081926
+      }
+    }
+  },
+  "attack_note": "Clone and synthetic trials are NOT counted in the false accept rate above. FAR is defined over human impostors; a clone is a different attack, and the whole point of the number is that speaker verification alone does not stop it. That is what ml/spoof/ is for.",
+  "latency": {
+    "embeddings_measured": 172,
+    "inference_ms_median": 442.61651199985863,
+    "inference_ms_mean": 498.30487860465433,
+    "inference_ms_min": 165.665440000339,
+    "inference_ms_max": 1437.8927050001948,
+    "inference_ms_p95": 1031.6557920004925,
+    "preprocessing_ms_median": 0.3662484996311832,
+    "audio_seconds_median": 7.005,
+    "ms_per_audio_second_median": 63.74844675347057,
+    "note": "One forward pass per utterance, measured during this evaluation run on this machine. Excludes model load. ECAPA cost scales with utterance length, and these utterances vary from about 3 to 30 seconds, so the spread below is mostly duration, not jitter: ms_per_audio_second_median is the comparable figure."
+  },
+  "underpowered": true,
+  "caveats": [
+    "Exploratory engineering evaluation, NOT a benchmark and NOT production accuracy.",
+    "37 speakers in total: 31 LibriSpeech dev-clean and 6 CMU ARCTIC.",
+    "Only 6 speakers and 12 trials behind the clone result. It is a demonstration, not a rate.",
+    "Two read-speech corpora, both clean and studio-derived. No telephony channel, no codec, no noise.",
+    "One clone family (Piper VITS, en_US-arctic). Newer zero-shot cloning systems are untested.",
+    "English only. No multilingual validation.",
+    "The similarity is an uncalibrated cosine, not a probability that two recordings share a speaker.",
+    "The LibriSpeech classes separate completely here. That is a statement about how easy clean read speech is, not about the system: expect overlap on real call audio.",
+    "The threshold is fitted on the LibriSpeech trials and not validated on held-out data.",
+    "ECAPA was trained on VoxCeleb, which overlaps neither corpus, but read speech is easier than VoxCeleb-style audio."
+  ]
+}

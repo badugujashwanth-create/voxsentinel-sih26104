@@ -28,8 +28,10 @@ datasets/
 data/raw/
 models/checkpoints/
 
-# Third-party model code and checkpoints fetched by ml/scripts/setup_aasist.py
+# Third-party model code and checkpoints fetched by the ml/scripts/setup_*.py
+# scripts. No model weights are ever committed.
 ml/spoof/vendor/
+ml/speaker/vendor/
 
 # Evaluation audio: downloaded corpora and generated samples, never committed
 ml/data/

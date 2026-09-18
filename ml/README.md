@@ -2,7 +2,20 @@
 
 Ownership boundary: Rohan.
 
-Voice spoof / deepfake detection for VoxSentinel.
+Two independent subsystems, each answering one question:
+
+| Subsystem | Question | Documented in |
+| --- | --- | --- |
+| `spoof/` | is this audio synthetic or spoofed? | this file |
+| `speaker/` | does this audio come from the enrolled speaker? | [`speaker/README.md`](speaker/README.md) |
+
+They are separate on purpose, and neither covers the other. The speaker
+evaluation shows one half of that: a text-to-speech clone of an enrolled
+speaker was accepted by the speaker verifier 12 times out of 12, because the
+clone genuinely carries that speaker's voice identity. Fusing the two signals
+into a risk decision is later work.
+
+The rest of this file documents the **spoof** subsystem.
 
 > ## What this subsystem does and does not answer
 >
@@ -34,6 +47,9 @@ Voice spoof / deepfake detection for VoxSentinel.
 | `evaluation/eval_manifest.json` | the 80 samples with provenance and hashes |
 | `evaluation/predictions.csv` | per-sample evidence for the published metrics |
 | `evaluation/evaluation_results.json` | summary derived from those predictions |
+
+Speaker verification lives under `speaker/` with its own contents table,
+model card, evaluation, and limitations: see [`speaker/README.md`](speaker/README.md).
 
 ## Model
 
