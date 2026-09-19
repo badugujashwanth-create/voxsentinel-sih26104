@@ -36,7 +36,7 @@ class StreamingAudioCanonicalizer:
         interleaved_samples: np.ndarray,
         source_segment: AudioSourceSegment | None,
     ) -> tuple[np.ndarray, AudioSourceSegment | None]:
-        """Converts a chunk and attributes output to its causally available source range."""
+        """Converts a chunk and attributes output to a conservative availability range."""
         self._ensure_open()
         samples = np.asarray(interleaved_samples, dtype=np.float32)
         if samples.ndim != 1 or samples.size % self.channels:

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class AudioSourceSegment:
-    """Source timeline range that contributed to a canonical output segment."""
+    """Conservative source availability range for a canonical output segment."""
 
     source_frame_start: int
     source_frame_end: int
@@ -30,7 +30,7 @@ class AudioWindowMetadata:
 
 @dataclass(frozen=True)
 class _CanonicalSegment:
-    """A canonical sample range with its conservative source attribution."""
+    """A canonical sample range with its conservative availability attribution."""
 
     canonical_start: int
     canonical_end: int
@@ -54,7 +54,7 @@ class SourceSegmentLedger:
         self._segments.append(_CanonicalSegment(canonical_start, canonical_end, source))
 
     def metadata_for_window(self, canonical_start: int, canonical_end: int, window_sequence: int) -> AudioWindowMetadata:
-        """Builds conservative metadata from all segments touched by a window."""
+        """Builds conservative availability metadata from segments touched by a window."""
         if canonical_end <= canonical_start:
             raise ValueError("window range is invalid")
         contributing = [segment.source for segment in self._segments if segment.canonical_end > canonical_start and segment.canonical_start < canonical_end]

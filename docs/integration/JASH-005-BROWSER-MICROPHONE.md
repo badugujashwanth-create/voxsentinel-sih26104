@@ -33,6 +33,9 @@ Run the frontend with `VITE_DEMO_MODE=false` and `VITE_API_BASE_URL=http://127.0
 - Frames use VXAF v1, a 32-byte little-endian header, and float32le PCM.
 - The backend owns downmixing, stateful `soxr==1.1.0` conversion, and AASIST
   windows.
+- Window source ranges are conservative causal-availability bounds: they
+  identify the source timeline known to have been available when the final
+  canonical samples arrived, not sample-accurate acoustic filter support.
 - Browser watermarks are 262144 bytes high and 65536 bytes low. Frames are
   dropped while congested; there is no retry queue.
 - Raw microphone audio is not retained or logged.
