@@ -64,4 +64,14 @@ describe("MicrophoneSession", () => {
     expect(setup.bridge.dispose).toHaveBeenCalledOnce();
     expect(setup.context.close).toHaveBeenCalledOnce();
   });
+
+  it("fails and cleans up when the active audio socket disconnects", async () => {
+    const setup = dependencies();
+    const session = new MicrophoneSession(setup.deps);
+    await session.start("call-1");
+    setup.socket.onclose?.();
+    await Promise.resolve();
+    expect(session.state).toBe("ERROR");
+    expect(setup.tracks[0].stop).toHaveBeenCalledOnce();
+  });
 });

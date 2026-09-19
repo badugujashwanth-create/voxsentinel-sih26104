@@ -60,6 +60,7 @@ export class MicrophoneSession {
       this.transport = new AudioTransport(this.socket);
       this.bridge = this.dependencies.createBridge(this.context, 1, (frame) => this.transport?.sendFrame(frame));
       await this.bridge.start();
+      this.socket.onclose = () => { void this.handleUnexpectedDisconnect(); };
       this.setState("STREAMING");
     } catch (error) {
       await this.cleanupResources();
@@ -90,6 +91,13 @@ export class MicrophoneSession {
   public dispose(): void {
     ++this.generation;
     void this.cleanupResources();
+  }
+
+  private async handleUnexpectedDisconnect(): Promise<void> {
+    if (this.state !== "STREAMING") return;
+    ++this.generation;
+    this.setState("ERROR");
+    await this.cleanupResources();
   }
 
   private async cleanupResources(): Promise<void> {
