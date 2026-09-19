@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from secrets import token_urlsafe
 from typing import Any
 
+from app.services.audio_source_ledger import AudioWindowMetadata
+
 
 class SessionClosedError(RuntimeError):
     """Raised when a caller uses a closed asynchronous session."""
@@ -18,6 +20,7 @@ class AudioWindow:
 
     sequence: int
     samples: Any
+    metadata: AudioWindowMetadata | None = None
 
 
 _CLOSED_SENTINEL = object()
@@ -159,9 +162,10 @@ class AudioSessionRegistry:
             raise ValueError("audio chunk sequence must increase")
         if session.window_scheduler is None:
             session.window_scheduler = AASISTWindowScheduler()
-        windows = session.window_scheduler.push(canonical.samples)
-        for samples in windows:
-            session.enqueue_window(AudioWindow(session.allocate_window_sequence(), samples))
+        source_segment = getattr(canonical, "source_segment", None)
+        windows = session.window_scheduler.push_with_metadata(canonical.samples, source_segment)
+        for samples, metadata in windows:
+            session.enqueue_window(AudioWindow(session.allocate_window_sequence(), samples, metadata))
         session.last_chunk_sequence = chunk_sequence
         return AudioIngestAcknowledgement(
             call_id=call_id,

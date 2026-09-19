@@ -60,3 +60,13 @@ def test_flush_does_not_pad_or_accept_after_close() -> None:
     with pytest.raises(RuntimeError, match="closed"):
         canonicalizer.push(np.zeros(1, dtype=np.float32))
 
+
+def test_output_metadata_uses_conservative_causal_source_endpoint() -> None:
+    """Output is attributed no earlier than the accepted source input making it available."""
+    from app.services.audio_source_ledger import AudioSourceSegment
+
+    canonicalizer = StreamingAudioCanonicalizer(48_000, 1)
+    source = AudioSourceSegment(4_000, 4_999, 7, 7, 0)
+    output, metadata = canonicalizer.push_with_metadata(np.zeros(48_000, dtype=np.float32), source)
+    assert output.size > 0
+    assert metadata == source
