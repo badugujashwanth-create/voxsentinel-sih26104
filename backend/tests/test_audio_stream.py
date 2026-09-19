@@ -64,4 +64,3 @@ def test_audio_stream_rejects_duplicate_owner() -> None:
     with pytest.raises(RuntimeError, match="producer"):
         asyncio.run(second.start(AudioStartMetadata(sample_rate=16_000, channels=1)))
     asyncio.run(first.close(normal=True))
-

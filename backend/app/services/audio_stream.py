@@ -1,5 +1,4 @@
 """Call-scoped microphone transport over the shared ML runtime session."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -95,4 +94,3 @@ class AudioStreamHandler:
         if self.previous_sequence is None or self.previous_source_end is None:
             return None
         return AudioSourceSegment(self.previous_source_end, self.previous_source_end, self.previous_sequence, self.previous_sequence, 0)
-

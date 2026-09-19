@@ -40,4 +40,3 @@ def test_ledger_rejects_non_monotonic_canonical_ranges() -> None:
     ledger.append(0, 4, AudioSourceSegment(0, 3, 1, 1, 0))
     with pytest.raises(ValueError, match="overlap"):
         ledger.append(3, 2, AudioSourceSegment(4, 5, 2, 2, 0))
-
