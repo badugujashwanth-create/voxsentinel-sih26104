@@ -51,6 +51,7 @@ class AsyncCallSession:
         self.risk_policy: Any | None = None
         self.event_sequence = 0
         self._stream_claimed = False
+        self._audio_claimed = False
         self._closed = False
 
     @property
@@ -129,6 +130,20 @@ class AudioSessionRegistry:
         session = self.get(call_id)
         if session is not None and session.generation_token == generation_token:
             session._stream_claimed = False
+
+    def claim_audio(self, call_id: str, generation_token: str) -> bool:
+        """Claims the sole microphone producer for an active runtime session."""
+        session = self.get(call_id)
+        if session is None or session.is_closed or session.generation_token != generation_token or session._audio_claimed:
+            return False
+        session._audio_claimed = True
+        return True
+
+    def release_audio(self, call_id: str, generation_token: str) -> None:
+        """Releases the microphone producer claim without closing the call."""
+        session = self.get(call_id)
+        if session is not None and session.generation_token == generation_token:
+            session._audio_claimed = False
 
     async def close(self, call_id: str, generation_token: str | None = None) -> None:
         """Closes the current session when its optional generation matches."""

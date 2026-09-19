@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from dataclasses import replace
 from functools import lru_cache
@@ -15,6 +16,8 @@ from app.services.call_service import CallNotFoundError, CallService
 from app.services.async_session import AudioSessionRegistry, SessionClosedError
 from app.services.audio_conversion import AudioConversionError
 from app.services.audio_conversion import decode_and_canonicalize
+from app.services.audio_protocol import AudioProtocolError, AudioStartMetadata
+from app.services.audio_stream import AudioStreamHandler
 from app.services.ml_service_client import MLServiceClient, MLServiceError
 from app.services.risk_provider import MLRiskProvider, MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
@@ -22,6 +25,9 @@ from app.state.session_store import SessionStore
 #: Application-specific WebSocket close codes (4000-4999 is the private range).
 WS_UNKNOWN_CALL = 4404
 WS_CALL_NOT_LIVE = 4409
+WS_AUDIO_INVALID = 4400
+WS_AUDIO_DUPLICATE = 4410
+WS_AUDIO_NOT_READY = 4411
 MAX_AUDIO_CONTAINER_BYTES = 25 * 1024 * 1024
 
 router = APIRouter(prefix="/api/v1/calls", tags=["calls"])
@@ -188,3 +194,70 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
         cancellation.set()
         if isinstance(provider, MLRiskProvider) and runtime_session is not None:
             get_audio_session_registry().release_stream(call_id, runtime_session.generation_token)
+
+
+@router.websocket("/{call_id}/audio-stream")
+async def stream_audio(websocket: WebSocket, call_id: str) -> None:
+    """Receives one browser microphone producer for a live ML call."""
+    await websocket.accept()
+    service = CallService(get_session_store())
+    try:
+        session = service.get(call_id)
+    except CallNotFoundError:
+        await websocket.close(code=WS_UNKNOWN_CALL, reason="Unknown call_id")
+        return
+    if session.status is not CallStatus.LIVE:
+        await websocket.close(code=WS_CALL_NOT_LIVE, reason=f"Call is {session.status}, not LIVE")
+        return
+    runtime_session = get_audio_session_registry().get(call_id)
+    if runtime_session is None:
+        await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML runtime session is not registered")
+        return
+    handler = AudioStreamHandler(get_audio_session_registry(), runtime_session)
+    normal = False
+    try:
+        while True:
+            message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
+            if message.get("text") is not None:
+                try:
+                    control = json.loads(message["text"])
+                    if control.get("type") == "audio_start":
+                        metadata = AudioStartMetadata(
+                            sample_rate=control.get("sample_rate"),
+                            channels=control.get("channels"),
+                            sample_format=control.get("sample_format", ""),
+                            protocol_version=control.get("protocol_version"),
+                        )
+                        await handler.start(metadata)
+                        await websocket.send_json({"type": "audio_ready", "protocol_version": 1, "call_id": call_id})
+                    elif control.get("type") == "audio_stop":
+                        normal = True
+                        break
+                    else:
+                        raise AudioProtocolError("unknown audio control message")
+                except RuntimeError as error:
+                    await websocket.close(code=WS_AUDIO_DUPLICATE, reason=str(error))
+                    return
+                except (AudioProtocolError, TypeError, ValueError, KeyError) as error:
+                    await websocket.close(code=WS_AUDIO_INVALID, reason=str(error))
+                    return
+            elif message.get("bytes") is not None:
+                try:
+                    await handler.receive_binary(message["bytes"])
+                except (AudioProtocolError, SessionClosedError, ValueError) as error:
+                    await websocket.close(code=WS_AUDIO_INVALID, reason=str(error))
+                    return
+            else:
+                await websocket.close(code=WS_AUDIO_INVALID, reason="audio message is empty")
+                return
+        await handler.close(normal=normal)
+        if normal:
+            await websocket.send_json({"type": "audio_stopped", "call_id": call_id})
+            await websocket.close()
+    except WebSocketDisconnect:
+        await handler.close(normal=False)
+    except Exception as error:
+        await handler.close(normal=False)
+        await websocket.close(code=1011, reason=f"audio stream failed: {error}")
