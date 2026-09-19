@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AudioTransport, AUDIO_WS_HIGH_WATERMARK_BYTES, AUDIO_WS_LOW_WATERMARK_BYTES } from "./audio-transport";
 
 function frame() {
-  return { firstSampleFrame: 0n, channels: 1, samples: new Float32Array([0, 1]) };
+  return { firstSampleFrame: 0n, channels: 1 as const, samples: new Float32Array([0, 1]) };
 }
 
 describe("AudioTransport", () => {
