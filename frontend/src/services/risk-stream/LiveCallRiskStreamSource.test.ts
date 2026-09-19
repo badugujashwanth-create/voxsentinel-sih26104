@@ -65,4 +65,14 @@ describe("LiveCallRiskStreamSource", () => {
     expect(received.onError).toHaveBeenCalledWith(expect.objectContaining({ message: "backend unavailable" }));
     expect(client.startCall).not.toHaveBeenCalled();
   });
+
+  it("starts microphone capture only after the real backend call is live", async () => {
+    const client = { createCall: vi.fn().mockResolvedValue(responseSession), startCall: vi.fn().mockResolvedValue({ ...responseSession, status: "LIVE" }), stopCall: vi.fn().mockResolvedValue({ ...responseSession, status: "COMPLETED" }) };
+    const microphone = { start: vi.fn().mockResolvedValue(undefined), stop: vi.fn().mockResolvedValue(undefined), reset: vi.fn(), dispose: vi.fn() };
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" }, microphone }, client);
+    await source.start(handlers());
+    expect(microphone.start).toHaveBeenCalledWith("backend-call-42");
+    await source.stop();
+    expect(microphone.stop).toHaveBeenCalledOnce();
+  });
 });

@@ -43,7 +43,7 @@ export function SecurityConsole({ controller, verificationOpen, onOpenVerificati
 
   return (
     <main className={`console-page console-page--${presentationState.toLowerCase()}`}>
-      <ConsoleHeader isLive={isLive} incidentId={controller.callId} liveMode={controller.liveMode} onReset={controller.reset} />
+      <ConsoleHeader isLive={isLive} incidentId={controller.callId} liveMode={controller.liveMode} microphoneState={controller.microphoneState} onReset={controller.reset} />
       <div className="console-body">
         <CallContextStrip context={context} scenarioLabel={scenario?.label} isLive={isLive} score={voiceRisk.score} level={voiceRisk.level} timestamp={currentEvent?.timestamp_ms ?? 0} />
         <section className="console-grid">
@@ -71,9 +71,9 @@ export function SecurityConsole({ controller, verificationOpen, onOpenVerificati
 }
 
 /** Renders the persistent product and demo-mode header. */
-function ConsoleHeader({ isLive, incidentId, liveMode, onReset }: { isLive: boolean; incidentId: string | null; liveMode: boolean; onReset(): void }) {
+function ConsoleHeader({ isLive, incidentId, liveMode, microphoneState, onReset }: { isLive: boolean; incidentId: string | null; liveMode: boolean; microphoneState: string; onReset(): void }) {
   const incidentLabel = incidentId ? `Incident #${incidentId}` : "Session pending";
-  return <header className="brand-header console-header"><div className="brand-lockup"><AudioLines size={21} /><span>VoxSentinel</span><span className="brand-slash">/</span><small>Forensic Command Workspace</small></div><div className="header-center"><span className="incident-tag"><span className={`status-dot ${isLive ? "status-dot--green" : "status-dot--muted"}`} /> {incidentLabel}</span><span className="header-separator">·</span><span>{isLive ? "Live call monitored" : liveMode ? "Awaiting backend call" : "Awaiting call"}</span></div><div className="header-actions"><span className="simulation-badge"><span className={`status-dot ${liveMode ? "status-dot--green" : "status-dot--cyan"}`} /> {liveMode ? "LIVE MODE" : "DEMO MODE"}</span><button className="icon-button" aria-label="Reset scenario" onClick={onReset}><RotateCcw size={16} /></button></div></header>;
+  return <header className="brand-header console-header"><div className="brand-lockup"><AudioLines size={21} /><span>VoxSentinel</span><span className="brand-slash">/</span><small>Forensic Command Workspace</small></div><div className="header-center"><span className="incident-tag"><span className={`status-dot ${isLive ? "status-dot--green" : "status-dot--muted"}`} /> {incidentLabel}</span><span className="header-separator">·</span><span>{isLive ? "Live call monitored" : liveMode ? "Awaiting backend call" : "Awaiting call"}</span>{liveMode && <span className="mono-label">MIC {microphoneState}</span>}</div><div className="header-actions"><span className="simulation-badge"><span className={`status-dot ${liveMode ? "status-dot--green" : "status-dot--cyan"}`} /> {liveMode ? "LIVE MODE" : "DEMO MODE"}</span><button className="icon-button" aria-label="Reset scenario" onClick={onReset}><RotateCcw size={16} /></button></div></header>;
 }
 
 /** Renders the above-fold identity, request, call, and risk context. */

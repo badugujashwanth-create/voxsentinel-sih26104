@@ -6,6 +6,7 @@ import { MockRiskStreamSource } from "../services/risk-stream/MockRiskStreamSour
 import type { RiskStreamSource } from "../services/risk-stream/RiskStreamSource";
 import { LiveCallRiskStreamSource } from "../services/risk-stream/LiveCallRiskStreamSource";
 import { useRiskStream } from "./useRiskStream";
+import { MicrophoneSession, type MicrophoneState } from "../audio/microphone-session";
 
 export interface DemoController {
   selectedScenario: ScenarioId | null;
@@ -28,14 +29,16 @@ export interface DemoController {
   failVerification(): void;
   callId: string | null;
   liveMode: boolean;
+  microphoneState: MicrophoneState;
 }
 
 /** Coordinates deterministic demo mode and the future WebSocket mode. */
 export function useDemoController(): DemoController {
   const liveMode = import.meta.env.VITE_DEMO_MODE === "false";
+  const [microphoneState, setMicrophoneState] = useState<MicrophoneState>("IDLE");
   const [selectedScenario, setSelectedScenario] = useState<ScenarioId | null>(null);
   const [verification, setVerification] = useState<VerificationState>(initialVerificationState);
-  const source = useMemo(() => createSource(selectedScenario, liveMode), [selectedScenario, liveMode]);
+  const source = useMemo(() => createSource(selectedScenario, liveMode, setMicrophoneState), [selectedScenario, liveMode]);
   const stream = useRiskStream(source);
   const context = selectedScenario ? SCENARIOS[selectedScenario] : null;
   const currentEvent = stream.events.at(-1) ?? context?.events[0] ?? null;
@@ -91,14 +94,16 @@ export function useDemoController(): DemoController {
     failVerification,
     callId,
     liveMode,
+    microphoneState,
   };
 }
 
 /** Creates the configured source for the selected scenario. */
-function createSource(scenarioId: ScenarioId | null, liveMode: boolean): RiskStreamSource | null {
+function createSource(scenarioId: ScenarioId | null, liveMode: boolean, onMicrophoneState: (state: MicrophoneState) => void): RiskStreamSource | null {
   if (!scenarioId) return null;
   if (!liveMode) return new MockRiskStreamSource(scenarioId);
   const scenario = SCENARIOS[scenarioId];
+  const microphone = new MicrophoneSession({}, onMicrophoneState);
   return new LiveCallRiskStreamSource({
     request: {
       claimed_identity: scenario.caller,
@@ -106,5 +111,6 @@ function createSource(scenarioId: ScenarioId | null, liveMode: boolean): RiskStr
       transaction_value: 2500000,
       currency: "INR",
     },
+    microphone,
   });
 }

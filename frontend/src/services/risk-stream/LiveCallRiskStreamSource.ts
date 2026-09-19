@@ -2,6 +2,7 @@ import type { ScenarioId } from "../../scenarios/scenarios";
 import { CallSessionClient, type CallSessionClientOptions, type CallSessionOperations, type CreateCallRequest, type CreateCallResponse } from "../call-session/CallSessionClient";
 import type { RiskStreamHandlers, RiskStreamSource, RiskStreamStatus } from "./RiskStreamSource";
 import { WebSocketRiskStreamSource } from "./WebSocketRiskStreamSource";
+import type { MicrophoneSession } from "../../audio/microphone-session";
 
 export interface LiveCallRequest {
   claimed_identity: string;
@@ -12,6 +13,7 @@ export interface LiveCallRequest {
 
 export interface LiveCallRiskStreamSourceOptions extends CallSessionClientOptions {
   request: LiveCallRequest;
+  microphone?: Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose">;
 }
 
 /** Orchestrates backend call creation, start, streaming, and stop lifecycle. */
@@ -23,12 +25,14 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private session: CreateCallResponse | undefined;
   private started = false;
   private handlers: RiskStreamHandlers | undefined;
+  private readonly microphone?: Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose">;
 
   /** Creates a live source that owns one backend call session. */
   public constructor(options: LiveCallRiskStreamSourceOptions, client: CallSessionOperations = new CallSessionClient(options)) {
     this.request = options.request;
     this.client = client;
     this.baseUrl = options.baseUrl;
+    this.microphone = options.microphone;
   }
 
   /** Creates and starts the backend call before opening its risk stream. */
@@ -41,6 +45,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
       this.started = true;
       this.stream = new WebSocketRiskStreamSource(this.session.call_id, this.baseUrl);
       await this.stream.start(this.createStreamHandlers(handlers));
+      await this.microphone?.start(this.session.call_id);
     } catch (error) {
       this.reportError(error instanceof Error ? error : new Error("Live call setup failed"));
     }
@@ -51,6 +56,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
     const stream = this.stream;
     this.stream = undefined;
     await stream?.stop();
+    await this.microphone?.stop();
     await this.stopBackendSession();
     this.emitStatus("DISCONNECTED");
   }
@@ -68,6 +74,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   /** Disposes the stream and asynchronously completes the backend session. */
   public reset(): void {
     this.stream?.dispose();
+    this.microphone?.reset();
     this.stream = undefined;
     this.started = false;
     void this.stopBackendSession();
@@ -77,6 +84,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   /** Releases handlers and closes any live resources without retaining state. */
   public dispose(): void {
     this.stream?.dispose();
+    this.microphone?.dispose();
     this.stream = undefined;
     this.started = false;
     this.handlers = undefined;
