@@ -8,7 +8,10 @@ import { LiveCallRiskStreamSource } from "../services/risk-stream/LiveCallRiskSt
 import { useRiskStream } from "./useRiskStream";
 import { MicrophoneSession, type MicrophoneState } from "../audio/microphone-session";
 
+export type DemoMode = "DEMO" | "LIVE";
+
 export interface DemoController {
+  mode: DemoMode;
   selectedScenario: ScenarioId | null;
   context: CallContext | null;
   presentationState: PresentationState;
@@ -20,6 +23,7 @@ export interface DemoController {
   identityVerification: VerificationState;
   protectedAction: ProtectedActionState;
   selectScenario(scenarioId: ScenarioId): void;
+  selectMode(mode: DemoMode): void;
   start(): Promise<void>;
   pause(): void;
   resume(): void;
@@ -34,7 +38,8 @@ export interface DemoController {
 
 /** Coordinates deterministic demo mode and the future WebSocket mode. */
 export function useDemoController(): DemoController {
-  const liveMode = import.meta.env.VITE_DEMO_MODE === "false";
+  const [mode, setMode] = useState<DemoMode>(import.meta.env.VITE_DEMO_MODE === "false" ? "LIVE" : "DEMO");
+  const liveMode = mode === "LIVE";
   const [microphoneState, setMicrophoneState] = useState<MicrophoneState>("IDLE");
   const [selectedScenario, setSelectedScenario] = useState<ScenarioId | null>(null);
   const [verification, setVerification] = useState<VerificationState>(initialVerificationState);
@@ -56,6 +61,12 @@ export function useDemoController(): DemoController {
     setVerification(initialVerificationState);
   }, []);
 
+  /** Changes the source mode while the call is idle. */
+  const selectMode = useCallback((nextMode: DemoMode) => {
+    if (stream.status === "CONNECTING" || stream.status === "LIVE" || stream.status === "PAUSED") return;
+    setMode(nextMode);
+  }, [stream.status]);
+
   const reset = useCallback(() => {
     stream.reset();
     setVerification(initialVerificationState);
@@ -74,6 +85,7 @@ export function useDemoController(): DemoController {
   }, []);
 
   return {
+    mode,
     selectedScenario,
     context,
     presentationState,
@@ -85,6 +97,7 @@ export function useDemoController(): DemoController {
     identityVerification: verification,
     protectedAction,
     selectScenario,
+    selectMode,
     start: stream.start,
     pause: stream.pause,
     resume: stream.resume,
