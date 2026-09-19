@@ -24,6 +24,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private stream: WebSocketRiskStreamSource | undefined;
   private session: CreateCallResponse | undefined;
   private started = false;
+  private stopping = false;
   private handlers: RiskStreamHandlers | undefined;
   private readonly microphone?: Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose">;
 
@@ -47,17 +48,20 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
       await this.stream.start(this.createStreamHandlers(handlers));
       await this.microphone?.start(this.session.call_id);
     } catch (error) {
+      await this.rollbackStart();
       this.reportError(error instanceof Error ? error : new Error("Live call setup failed"));
     }
   }
 
   /** Closes the stream and completes a started backend call. */
   public async stop(): Promise<void> {
+    this.stopping = true;
     const stream = this.stream;
     this.stream = undefined;
     await stream?.stop();
     await this.microphone?.stop();
     await this.stopBackendSession();
+    this.stopping = false;
     this.emitStatus("DISCONNECTED");
   }
 
@@ -73,22 +77,24 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
 
   /** Disposes the stream and asynchronously completes the backend session. */
   public reset(): void {
+    this.stopping = true;
     this.stream?.dispose();
     this.microphone?.reset();
     this.stream = undefined;
-    this.started = false;
     void this.stopBackendSession();
+    this.stopping = false;
     this.emitStatus("IDLE");
   }
 
   /** Releases handlers and closes any live resources without retaining state. */
   public dispose(): void {
+    this.stopping = true;
     this.stream?.dispose();
     this.microphone?.dispose();
     this.stream = undefined;
-    this.started = false;
     this.handlers = undefined;
     void this.stopBackendSession();
+    this.stopping = false;
   }
 
   /** Wraps stream status so a normal socket close completes the backend call. */
@@ -98,9 +104,26 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
       onError: handlers.onError,
       onStatusChange: (status) => {
         handlers.onStatusChange(status);
-        if (status === "DISCONNECTED") void this.stopBackendSession();
+        if (status === "DISCONNECTED" && !this.stopping) void this.handleUnexpectedRiskDisconnect();
       },
     };
+  }
+
+  /** Rolls back every resource acquired by a failed live startup. */
+  private async rollbackStart(): Promise<void> {
+    this.stopping = true;
+    const stream = this.stream;
+    this.stream = undefined;
+    await stream?.stop();
+    await this.microphone?.stop();
+    await this.stopBackendSession();
+    this.stopping = false;
+  }
+
+  /** Terminates microphone capture when the risk transport disappears unexpectedly. */
+  private async handleUnexpectedRiskDisconnect(): Promise<void> {
+    await this.microphone?.stop();
+    await this.stopBackendSession();
   }
 
   /** Stops a started backend session once and releases its identity. */

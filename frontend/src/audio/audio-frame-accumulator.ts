@@ -18,7 +18,10 @@ export class AudioFrameAccumulator {
     this.validateQuantum(channelSamples);
     if (this.bufferStart === undefined) this.bufferStart = firstSampleFrame;
     const expected = this.bufferStart + BigInt(this.buffers[0].length);
-    if (firstSampleFrame > expected) this.bufferStart = firstSampleFrame;
+    if (firstSampleFrame > expected) {
+      this.reset();
+      this.bufferStart = firstSampleFrame;
+    }
     this.buffers = this.buffers.map((buffer, index) => concat(buffer, channelSamples[index]));
     const frames: TransportFrame[] = [];
     while (this.buffers[0].length >= this.targetSamples) {

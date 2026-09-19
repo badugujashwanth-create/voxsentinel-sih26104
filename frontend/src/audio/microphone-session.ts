@@ -78,7 +78,7 @@ export class MicrophoneSession {
     if (this.state === "IDLE" || this.state === "ERROR") return this.cleanupResources();
     this.setState("STOPPING");
     ++this.generation;
-    this.bridge?.flush();
+    await this.bridge?.flush();
     this.transport?.stop();
     await this.cleanupResources();
     this.setState("IDLE");
@@ -141,16 +141,22 @@ function waitForSocketOpen(socket: MicrophoneSocket): Promise<void> {
     }
     socket.onopen = () => resolve();
     socket.onerror = () => reject(new Error("Audio WebSocket connection failed"));
+    socket.onclose = () => reject(new Error("Audio WebSocket closed before connection"));
   });
 }
 
 function waitForAudioReady(socket: MicrophoneSocket): Promise<void> {
   return new Promise((resolve, reject) => {
     socket.onmessage = (event) => {
-      const message = JSON.parse(String(event.data)) as { type?: string };
-      if (message.type === "audio_ready") resolve();
-      else reject(new Error("Backend did not acknowledge audio_start"));
+      try {
+        const message = JSON.parse(String(event.data)) as { type?: string };
+        if (message.type === "audio_ready") resolve();
+        else reject(new Error("Backend did not acknowledge audio_start"));
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error("Malformed audio_ready response"));
+      }
     };
     socket.onerror = () => reject(new Error("Audio WebSocket audio_ready failed"));
+    socket.onclose = () => reject(new Error("Audio WebSocket closed before audio_ready"));
   });
 }

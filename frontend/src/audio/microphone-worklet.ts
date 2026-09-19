@@ -15,7 +15,10 @@ class VoxSentinelMicrophoneProcessor extends AudioWorkletProcessor {
     const channels = options?.processorOptions?.channels === 2 ? 2 : 1;
     this.accumulator = new AudioFrameAccumulator(1024, channels);
     this.port.onmessage = (event: MessageEvent) => {
-      if (event.data?.type === "flush") this.emitResidual();
+      if (event.data?.type === "flush") {
+        this.emitResidual();
+        this.port.postMessage({ type: "flush_complete" });
+      }
       if (event.data?.type === "reset") this.accumulator.reset();
     };
   }

@@ -18,4 +18,13 @@ describe("AudioFrameAccumulator", () => {
     expect(residual?.firstSampleFrame).toBe(0n);
     expect(accumulator.flush()).toBeNull();
   });
+
+  it("discards residual samples when the source timeline has a gap", () => {
+    const accumulator = new AudioFrameAccumulator(1_024, 1);
+    accumulator.append([new Float32Array(7)], 0n);
+    const emitted = accumulator.append([new Float32Array(1_024)], 20n);
+    const frame = emitted[0];
+    expect(frame?.firstSampleFrame).toBe(20n);
+    expect(frame?.samples).toHaveLength(1_024);
+  });
 });

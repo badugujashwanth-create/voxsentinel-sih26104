@@ -9,6 +9,7 @@ export class AudioWorkletBridge {
   private readonly onFrame: AudioFrameHandler;
   private readonly source?: AudioNode;
   private node: AudioWorkletNode | undefined;
+  private flushResolver: (() => void) | undefined;
 
   public constructor(context: AudioContext, channels: 1 | 2, onFrame: AudioFrameHandler, source?: AudioNode) {
     this.context = context;
@@ -23,19 +24,29 @@ export class AudioWorkletBridge {
     this.node = new AudioWorkletNode(this.context, "voxsentinel-microphone", { processorOptions: { channels: this.channels } });
     this.node.port.onmessage = (event: MessageEvent) => {
       if (event.data?.type === "frame") this.onFrame(event.data);
+      if (event.data?.type === "flush_complete") {
+        this.flushResolver?.();
+        this.flushResolver = undefined;
+      }
     };
     this.source?.connect(this.node);
     this.node.connect(this.context.destination);
   }
 
   /** Requests a final residual frame without padding. */
-  public flush(): void {
-    this.node?.port.postMessage({ type: "flush" });
+  public flush(): Promise<void> {
+    if (!this.node) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.flushResolver = resolve;
+      this.node?.port.postMessage({ type: "flush" });
+    });
   }
 
   /** Disposes the node and prevents future callbacks. */
   public dispose(): void {
     this.node?.port.postMessage({ type: "reset" });
+    this.flushResolver?.();
+    this.flushResolver = undefined;
     this.node?.disconnect();
     this.source?.disconnect();
     this.node = undefined;

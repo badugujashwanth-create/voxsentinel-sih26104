@@ -194,6 +194,7 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
         cancellation.set()
         if isinstance(provider, MLRiskProvider) and runtime_session is not None:
             get_audio_session_registry().release_stream(call_id, runtime_session.generation_token)
+            await get_audio_session_registry().close(call_id, runtime_session.generation_token)
 
 
 @router.websocket("/{call_id}/audio-stream")
@@ -215,6 +216,7 @@ async def stream_audio(websocket: WebSocket, call_id: str) -> None:
         return
     handler = AudioStreamHandler(get_audio_session_registry(), runtime_session)
     normal = False
+    closed = False
     try:
         while True:
             message = await websocket.receive()
@@ -253,11 +255,17 @@ async def stream_audio(websocket: WebSocket, call_id: str) -> None:
                 await websocket.close(code=WS_AUDIO_INVALID, reason="audio message is empty")
                 return
         await handler.close(normal=normal)
+        closed = True
         if normal:
             await websocket.send_json({"type": "audio_stopped", "call_id": call_id})
             await websocket.close()
     except WebSocketDisconnect:
         await handler.close(normal=False)
+        closed = True
     except Exception as error:
         await handler.close(normal=False)
+        closed = True
         await websocket.close(code=1011, reason=f"audio stream failed: {error}")
+    finally:
+        if not closed:
+            await handler.close(normal=False)
