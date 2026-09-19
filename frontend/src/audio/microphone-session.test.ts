@@ -16,7 +16,8 @@ function dependencies() {
     onerror: null as (() => void) | null,
     onclose: null as (() => void) | null,
   };
-  const context = { sampleRate: 48_000, state: "running", close: vi.fn().mockResolvedValue(undefined), resume: vi.fn().mockResolvedValue(undefined) } as unknown as AudioContext;
+  const sourceNode = { connect: vi.fn(), disconnect: vi.fn() } as unknown as MediaStreamAudioSourceNode;
+  const context = { sampleRate: 48_000, state: "running", close: vi.fn().mockResolvedValue(undefined), resume: vi.fn().mockResolvedValue(undefined), createMediaStreamSource: vi.fn().mockReturnValue(sourceNode) } as unknown as AudioContext;
   const bridge = { start: vi.fn().mockResolvedValue(undefined), flush: vi.fn(), dispose: vi.fn() };
   const deps: MicrophoneSessionDependencies = {
     getUserMedia: vi.fn().mockResolvedValue(stream),
@@ -26,6 +27,7 @@ function dependencies() {
       return socket;
     }),
     createBridge: vi.fn().mockReturnValue(bridge),
+    createMediaStreamSource: vi.fn().mockReturnValue(sourceNode),
   };
   return { deps, tracks, socket, context, bridge };
 }

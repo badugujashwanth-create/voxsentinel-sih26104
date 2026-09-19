@@ -7,12 +7,14 @@ export class AudioWorkletBridge {
   private readonly context: AudioContext;
   private readonly channels: 1 | 2;
   private readonly onFrame: AudioFrameHandler;
+  private readonly source?: AudioNode;
   private node: AudioWorkletNode | undefined;
 
-  public constructor(context: AudioContext, channels: 1 | 2, onFrame: AudioFrameHandler) {
+  public constructor(context: AudioContext, channels: 1 | 2, onFrame: AudioFrameHandler, source?: AudioNode) {
     this.context = context;
     this.channels = channels;
     this.onFrame = onFrame;
+    this.source = source;
   }
 
   /** Loads the dedicated worklet, attaches the frame callback, and connects it. */
@@ -22,6 +24,7 @@ export class AudioWorkletBridge {
     this.node.port.onmessage = (event: MessageEvent) => {
       if (event.data?.type === "frame") this.onFrame(event.data);
     };
+    this.source?.connect(this.node);
     this.node.connect(this.context.destination);
   }
 
@@ -34,6 +37,7 @@ export class AudioWorkletBridge {
   public dispose(): void {
     this.node?.port.postMessage({ type: "reset" });
     this.node?.disconnect();
+    this.source?.disconnect();
     this.node = undefined;
   }
 }
