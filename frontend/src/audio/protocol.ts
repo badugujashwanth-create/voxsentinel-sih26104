@@ -39,5 +39,5 @@ export function encodeAudioFrame(frame: TransportFrame): ArrayBuffer {
 
 /** Encodes the JSON control message that negotiates browser PCM transport. */
 export function encodeAudioStart(metadata: AudioStartMetadata): string {
-  return JSON.stringify(metadata);
+  return JSON.stringify({ type: "audio_start", ...metadata });
 }
