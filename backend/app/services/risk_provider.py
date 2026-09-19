@@ -219,6 +219,16 @@ class MLRiskProvider(RiskProvider):
             aggregate = aggregator.add(evidence)
             decision = policy.evaluate(aggregate.threshold_state)
             session.event_sequence += 1
+            correlation = {}
+            if window.metadata is not None:
+                correlation = {
+                    "audio_source_frame_start": window.metadata.audio_source_frame_start,
+                    "audio_source_frame_end": window.metadata.audio_source_frame_end,
+                    "audio_source_transport_sequence_start": window.metadata.audio_source_transport_sequence_start,
+                    "audio_source_transport_sequence_end": window.metadata.audio_source_transport_sequence_end,
+                    "audio_source_gap_count": window.metadata.audio_source_gap_count,
+                    "audio_window_sequence": window.metadata.audio_window_sequence,
+                }
             yield LiveRiskEvent(
                 call_id=session.call_id,
                 sequence=session.event_sequence,
@@ -244,4 +254,5 @@ class MLRiskProvider(RiskProvider):
                     "replay_risk_score": EvidenceAvailability.NOT_EVALUATED,
                     "context_risk_score": EvidenceAvailability.NOT_EVALUATED,
                 },
+                **correlation,
             )

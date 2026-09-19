@@ -51,4 +51,17 @@ describe("risk domain", () => {
     };
     expect(() => validateLiveRiskEvent(event)).toThrow();
   });
+
+  it("preserves optional audio source correlation metadata", () => {
+    const event = {
+      call_id: "call-1", sequence: 1, timestamp_ms: 100, synthetic_probability: 0.1,
+      speaker_match_score: 0, speaker_mismatch_score: 0, prosody_anomaly_score: 0,
+      replay_risk_score: 0, context_risk_score: 0, overall_risk_score: 20,
+      risk_level: "LOW", reasons: ["baseline"], recommended_action: "MONITOR",
+      audio_source_frame_start: 100, audio_source_frame_end: 200,
+      audio_source_transport_sequence_start: 1, audio_source_transport_sequence_end: 2,
+      audio_source_gap_count: 0, audio_window_sequence: 1,
+    };
+    expect(validateLiveRiskEvent(event).audio_source_frame_end).toBe(200);
+  });
 });
