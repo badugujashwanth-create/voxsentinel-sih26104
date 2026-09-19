@@ -83,7 +83,19 @@ TARGET_TRANSPORT_SAMPLES = 1024 samples per channel
 
 Approximate duration is 21.33 ms at 48 kHz and 23.22 ms at 44.1 kHz.
 
-The accumulator receives samples, preserves the first Web Audio frame index represented by buffered samples, emits approximately 1024-sample transport frames, and retains only a small residual until the next frame. It must not resample, create AASIST windows, calculate risk, persist audio, or maintain an unbounded retry queue.
+The accumulator receives samples in browser-defined render quanta, preserves the first Web Audio frame index represented by buffered samples, emits exactly 1024-sample transport frames whenever enough samples exist, and retains at most 1023 residual samples per channel until the next frame. It must not resample, create AASIST windows, calculate risk, persist audio, or maintain an unbounded retry queue.
+
+JASH-005 transports either one or two channels. The AudioWorklet preserves the actual transport channels and interleaves them; it does not downmix. The backend performs the authoritative downmix before stateful resampling. `audio_start.channels` is therefore exactly `1` or `2`.
+
+The browser transport constants are:
+
+~~~text
+TARGET_TRANSPORT_SAMPLES = 1024
+MAX_TRANSPORT_SAMPLES_PER_FRAME = 1024
+SUPPORTED_CHANNELS = {1, 2}
+SUPPORTED_PROTOCOL_VERSION = 1
+SUPPORTED_SAMPLE_FORMAT = "float32le"
+~~~
 
 On normal stop, a final non-empty residual may be sent if frame-aligned and permitted by the protocol. It must not be zero-padded merely to reach 1024 samples.
 
@@ -140,13 +152,17 @@ Payload is little-endian IEEE-754 Float32 PCM interleaved by channel. Payload le
 sample_count_per_channel * channels * 4
 ~~~
 
-first_sample_frame is the AudioContext/Web Audio frame index of the first sample in the transport frame. The final source position is first_sample_frame + sample_count_per_channel - 1.
+The byte offsets are fixed: magic `[0,4)`, protocol version `[4]`, header length `[5]`, flags `[6,8)`, frame sequence `[8,16)`, first sample frame `[16,24)`, sample count `[24,28)`, and payload byte length `[28,32)`.
+
+`first_sample_frame` is the AudioContext/Web Audio frame index of the first sample in the transport frame. The final source position is `first_sample_frame + sample_count_per_channel - 1`.
 
 ### 6.3 Validation
 
-The backend rejects wrong magic, unsupported version, invalid header length, unsupported flags, non-increasing frame sequence, regressing first_sample_frame, malformed payload length, unsupported sample format/rate/channels, NaN or infinite PCM, data before valid audio_start and ownership, data after audio_stop, and data for cancelled or closed sessions.
+The backend accepts only protocol version `1`, header length `32`, flags `0`, integer source rates from `8,000` through `96,000` Hz inclusive, channel counts `1` or `2`, sample counts from `1` through `1,024`, and sample format `float32le`.
 
-Frame sequence gaps greater than one are accepted and recorded as transport telemetry. They are not authenticity evidence and must not generate risk reasons.
+The backend rejects wrong magic, unsupported version, invalid header length, unsupported flags, non-increasing frame sequence, regressing `first_sample_frame`, integer overflow in `first_sample_frame + sample_count_per_channel - 1`, malformed payload length, unsupported sample format/rate/channels, NaN or infinite PCM, data before valid audio_start and ownership, data after audio_stop, and data for cancelled or closed sessions.
+
+Frame sequence begins at `1` and increments by exactly one for every transport frame produced by the browser, including frames later dropped by backpressure. The backend requires strictly increasing uint64 values. A sender at `uint64` maximum must stop; wraparound is invalid and rejected. Frame sequence gaps greater than one are accepted and recorded as transport telemetry. They are not authenticity evidence and must not generate risk reasons.
 
 Normal stop messages are:
 
@@ -168,11 +184,22 @@ It validates source metadata, downmixes supported interleaved channels to mono, 
 
 ### 7.1 Resampler
 
-The preferred implementation is soxr.ResampleStream.
+The selected implementation is `soxr.ResampleStream` from the Python package `soxr==1.1.0`.
 
-The backend dependency must be pinned to an exact version only after a real compatibility installation and test in the documented backend environment. The compatibility gate verifies import, stateful chunked conversion, output shape, and teardown. The exact version then belongs in backend/requirements.txt.
+Compatibility validation completed in the documented backend environment:
 
-If soxr cannot be installed and reproduced in the documented backend environment, implementation stops and reports the blocker. It must not silently substitute per-frame scipy resampling.
+- Python `3.13.7` on Windows x64;
+- `soxr==1.1.0` imports successfully and exposes `ResampleStream`;
+- 48 kHz→16 kHz and 44.1 kHz→16 kHz streaming passed;
+- arbitrary input chunk boundaries passed;
+- end-of-stream flush passed;
+- output was finite `float32`;
+- chunked output matched the package one-shot reference exactly in the validation run;
+- Torch was not installed or imported.
+
+The production backend dependency must use exactly `soxr==1.1.0`.
+
+If `soxr==1.1.0` cannot be installed and reproduced in the documented backend environment, implementation stops and reports the blocker. It must not silently substitute per-frame scipy resampling.
 
 The resampler retains filter and fractional-phase state across every binary frame, never independently resamples WebSocket frames, downmixes before resampling, emits continuous mono 16 kHz float32, flushes only samples derived from received audio, never pads or fabricates audio, and releases all state on stop, reset, disconnect, or failed startup.
 
@@ -303,6 +330,8 @@ No zero-padding is performed solely to create another model window.
 
 Reset is idempotent. It invalidates the generation, cancels startup or streaming work, closes both WebSockets, disposes the canonicalizer and runtime session, stops tracks, disconnects nodes, closes the AudioContext, clears local state, and returns to IDLE.
 
+Reset or error discards any residual accumulator samples; it never manufactures a final transport frame.
+
 ### 9.5 Unexpected disconnect
 
 An unexpected audio WebSocket disconnect releases ownership, disposes the canonicalizer, cancels/closes the JASH-004 runtime session, prevents MLRiskProvider from waiting indefinitely, stops or fails the live call, tears down frontend risk and microphone resources, reports ERROR or DISCONNECTED, and does not automatically reconnect.
@@ -313,7 +342,14 @@ An unexpected risk WebSocket disconnect while microphone streaming is active tri
 
 ### 10.1 Browser
 
-Use named high and low WebSocket.bufferedAmount thresholds. Above HIGH, newly produced transport frames are dropped rather than added to an application retry queue. Sending resumes below LOW.
+Use these browser transport watermarks:
+
+~~~text
+AUDIO_WS_HIGH_WATERMARK_BYTES = 262144  # 256 KiB
+AUDIO_WS_LOW_WATERMARK_BYTES = 65536    # 64 KiB
+~~~
+
+The invariant `LOW < HIGH` is required. These are transport backpressure controls, not ML thresholds or risk parameters. Above HIGH, newly produced transport frames are dropped rather than added to an application retry queue. Sending resumes below LOW.
 
 Track:
 
@@ -383,7 +419,7 @@ Mock mode never requests microphone permission, creates AudioContext, loads Audi
 
 Before production implementation begins, recreate or use the documented backend environment from backend/requirements.txt and run the complete backend suite.
 
-The earlier missing-soundfile shell failure is not valid baseline evidence. If the recreated backend baseline is not green, production JASH-005 changes must not begin.
+The validated review environment used Python `3.13.7` in `backend/.venv-jash005-review` and produced `96 passed`, `0 failed`, and `0 skipped`. It emitted two dependency deprecation warnings from FastAPI/Starlette around the current httpx TestClient integration. The earlier missing-soundfile shell failure is not valid baseline evidence. If the recreated backend baseline is not green, production JASH-005 changes must not begin.
 
 ## 15. Testing requirements
 
