@@ -76,4 +76,11 @@ describe("MicrophoneSession", () => {
     expect(session.state).toBe("ERROR");
     expect(setup.tracks[0].stop).toHaveBeenCalledOnce();
   });
+
+  it("uses the configured backend origin for the audio socket", async () => {
+    const setup = dependencies();
+    const session = new MicrophoneSession({ ...setup.deps, baseUrl: "http://backend.test" });
+    await session.start("call-1");
+    expect(setup.deps.createSocket).toHaveBeenCalledWith("ws://backend.test/api/v1/calls/call-1/audio-stream");
+  });
 });
