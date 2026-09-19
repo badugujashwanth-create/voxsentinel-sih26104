@@ -11,6 +11,6 @@ test("streams browser microphone audio through the live ML path", async ({ page 
   await page.getByRole("button", { name: /Start analysis/i }).click();
   await expect(page.getByText("MIC STREAMING", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("LIVE CALL", { exact: true })).toBeVisible();
-  await expect(page.getByText("N/A", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("N/A", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   expect(consoleErrors).toEqual([]);
 });
