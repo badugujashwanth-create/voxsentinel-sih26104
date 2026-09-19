@@ -18,5 +18,5 @@ export default defineConfig({
     url: PLAYWRIGHT_BASE_URL,
     reuseExistingServer: !process.env.CI,
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], permissions: process.env.JASH005_LIVE_MIC_ACCEPTANCE === "1" ? ["microphone"] : undefined, launchOptions: process.env.JASH005_LIVE_MIC_ACCEPTANCE === "1" ? { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } : undefined } }],
 });
