@@ -69,7 +69,8 @@ class AcceptanceTelemetry:
         })
 
     def mark_cleanup(self) -> None:
-        """Marks all runtime resources inactive after disposal."""
+        """Marks the microphone and all runtime resources inactive after disposal."""
+        self.microphone_state = "IDLE"
         self._cleanup = {"producer_active": False, "canonicalizer_active": False, "session_active": False}
 
     def snapshot(self) -> dict[str, Any]:

@@ -50,6 +50,7 @@ def test_snapshot_is_bounded_and_contains_no_audio_payload() -> None:
 def test_snapshot_records_warmup_and_cleanup_without_changing_policy() -> None:
     telemetry = AcceptanceTelemetry("call-2")
     telemetry.mark_stream_started()
+    telemetry.microphone_state = "STREAMING"
     telemetry.mark_first_event()
     telemetry.record_inference(
         audio_window_sequence=1,
@@ -66,6 +67,7 @@ def test_snapshot_records_warmup_and_cleanup_without_changing_policy() -> None:
 
     snapshot = telemetry.snapshot()
 
+    assert snapshot["microphone_state"] == "IDLE"
     assert snapshot["warmup_latency_ms"] is not None
     assert snapshot["cleanup"] == {
         "producer_active": False,
