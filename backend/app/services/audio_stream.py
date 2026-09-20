@@ -94,7 +94,12 @@ class AudioStreamHandler:
         if normal and self.canonicalizer is not None:
             flushed = self.canonicalizer.flush()
             if flushed.size and self._last_source_segment is not None:
-                self.registry.ingest_canonical(self.session.call_id, CanonicalAudioChunk(flushed, self._last_source_segment), (self.previous_sequence or 0) + 1)
+                acknowledgement = self.registry.ingest_canonical(self.session.call_id, CanonicalAudioChunk(flushed, self._last_source_segment), (self.previous_sequence or 0) + 1)
+                if self.telemetry is not None:
+                    self.telemetry.canonical_samples += int(flushed.size)
+                    self.telemetry.aasist_windows_generated += acknowledgement.windows_enqueued
+                    self.telemetry.backend_windows_dropped = acknowledgement.dropped_window_count
+                    self.telemetry.source_gap_count = self.source_gap_count
         if self.canonicalizer is not None:
             self.canonicalizer.close()
         if self._claimed:

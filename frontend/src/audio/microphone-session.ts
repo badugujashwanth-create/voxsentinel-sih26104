@@ -55,6 +55,11 @@ export class MicrophoneSession {
 
   /** Requests permission only when called by an explicit operator action. */
   public async start(callId: string): Promise<void> {
+    this.callId = callId;
+    this.lastTransportTelemetry = undefined;
+    this.lastSampleRate = undefined;
+    this.audioReadyAt = undefined;
+    this.timingAnchor = undefined;
     const token = ++this.generation;
     this.setState("REQUESTING_PERMISSION");
     try {

@@ -64,3 +64,23 @@ def test_audio_stream_rejects_duplicate_owner() -> None:
     with pytest.raises(RuntimeError, match="producer"):
         asyncio.run(second.start(AudioStartMetadata(sample_rate=16_000, channels=1)))
     asyncio.run(first.close(normal=True))
+
+
+def test_normal_close_accounts_for_resampler_flush_output() -> None:
+    """Normal-stop flush output is included in acceptance counters and windows."""
+    async def exercise() -> None:
+        """Runs the flush accounting assertion."""
+        from app.services.acceptance_telemetry import AcceptanceTelemetry
+
+        registry = AudioSessionRegistry()
+        session = registry.register("call-1")
+        telemetry = AcceptanceTelemetry("call-1")
+        handler = AudioStreamHandler(registry, session, telemetry)
+        await handler.start(AudioStartMetadata(sample_rate=48_000, channels=1))
+        payload = np.zeros(1_024, dtype="<f4").tobytes()
+        await handler.receive_binary(encode_audio_frame(frame_sequence=1, first_sample_frame=0, sample_count_per_channel=1_024, channels=1, payload=payload))
+        before = telemetry.canonical_samples
+        await handler.close(normal=True)
+        assert telemetry.canonical_samples > before
+
+    asyncio.run(exercise())

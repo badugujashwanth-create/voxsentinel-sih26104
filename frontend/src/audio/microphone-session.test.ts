@@ -83,4 +83,14 @@ describe("MicrophoneSession", () => {
     await session.start("call-1");
     expect(setup.deps.createSocket).toHaveBeenCalledWith("ws://backend.test/api/v1/calls/call-1/audio-stream");
   });
+
+  it("retains the call id and reports cleanup after stop", async () => {
+    const setup = dependencies();
+    const session = new MicrophoneSession(setup.deps);
+    await session.start("call-1");
+    await session.stop();
+    const snapshot = session.getAcceptanceSnapshot();
+    expect(snapshot.call_id).toBe("call-1");
+    expect(snapshot.cleanup).toEqual({ tracks_active: false, audio_context_active: false, audio_socket_active: false });
+  });
 });

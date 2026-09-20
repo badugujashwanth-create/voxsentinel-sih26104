@@ -1,4 +1,4 @@
-from app.services.acceptance_telemetry import AcceptanceTelemetry
+from app.services.acceptance_telemetry import AcceptanceTelemetry, AcceptanceTelemetryRegistry
 
 
 def test_snapshot_is_bounded_and_contains_no_audio_payload() -> None:
@@ -73,3 +73,17 @@ def test_snapshot_records_warmup_and_cleanup_without_changing_policy() -> None:
         "session_active": False,
     }
     assert snapshot["inferences"][0]["overall_risk_score"] == 20
+
+
+def test_registry_prunes_completed_snapshots_to_a_bounded_history() -> None:
+    """Completed acceptance snapshots do not grow the process forever."""
+    registry = AcceptanceTelemetryRegistry(max_snapshots=2)
+    first = registry.create("call-1")
+    first.mark_cleanup()
+    second = registry.create("call-2")
+    second.mark_cleanup()
+    registry.create("call-3")
+
+    assert registry.get("call-1") is None
+    assert registry.get("call-2") is not None
+    assert registry.get("call-3") is not None

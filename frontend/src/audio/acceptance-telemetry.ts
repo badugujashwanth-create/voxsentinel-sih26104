@@ -24,6 +24,7 @@ export interface AcceptanceSnapshot {
   browser_frames_dropped?: number;
   transport_sequence_gap_count?: number;
   warmup_latency_ms?: number | null;
+  cleanup?: { tracks_active: boolean; audio_context_active: boolean; audio_socket_active: boolean };
   inferences: AcceptanceInference[];
 }
 

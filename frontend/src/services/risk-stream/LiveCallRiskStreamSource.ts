@@ -34,6 +34,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private readonly microphone?: MicrophoneLike;
   private lifecycleGeneration = 0;
   private readonly acceptanceInferences: AcceptanceInference[] = [];
+  private static readonly maxAcceptanceInferences = 50;
 
   /** Creates a live source that owns one backend call session. */
   public constructor(options: LiveCallRiskStreamSourceOptions, client: CallSessionOperations = new CallSessionClient(options)) {
@@ -47,6 +48,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   public async start(handlers: RiskStreamHandlers): Promise<void> {
     const generation = ++this.lifecycleGeneration;
     this.handlers = handlers;
+    this.acceptanceInferences.length = 0;
     this.emitStatus("CONNECTING");
     try {
       this.session = await this.client.createCall(this.request);
@@ -73,6 +75,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
     this.stream = undefined;
     await stream?.stop();
     await this.microphone?.stop();
+    this.publishAcceptanceState();
     await this.stopBackendSession();
     this.stopping = false;
     this.emitStatus("DISCONNECTED");
@@ -94,6 +97,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
     this.stopping = true;
     this.stream?.dispose();
     this.microphone?.reset();
+    this.publishAcceptanceState();
     this.stream = undefined;
     void this.stopBackendSession();
     this.stopping = false;
@@ -106,6 +110,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
     this.stopping = true;
     this.stream?.dispose();
     this.microphone?.dispose();
+    this.publishAcceptanceState();
     this.stream = undefined;
     this.handlers = undefined;
     void this.stopBackendSession();
@@ -128,15 +133,21 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private recordAcceptanceEvent(event: LiveRiskEvent): void {
     const mic = this.microphone?.getAcceptanceSnapshot?.();
     const steadyLatency = event.audio_source_frame_end !== undefined && mic?.timing_anchor ? steadyStateLatencyMs(performance.now(), captureEndPerformanceMs(BigInt(event.audio_source_frame_end), mic.timing_anchor)) : null;
-    this.acceptanceInferences.push({ audio_window_sequence: event.audio_window_sequence, raw_spoof_score: event.synthetic_probability, aggregate_score: event.aggregate_spoof_evidence ?? event.synthetic_probability, policy_state: event.overall_risk_score === 70 ? "ELEVATED_AUTHENTICITY_REVIEW" : "NORMAL", overall_risk_score: event.overall_risk_score, risk_level: event.risk_level, recommended_action: event.recommended_action, ml_inference_latency_ms: event.inference_latency_ms, steady_state_latency_ms: steadyLatency, score_semantics: "uncalibrated" });
-    publishAcceptanceSnapshot(createAcceptanceSnapshot({ call_id: event.call_id, microphone_state: mic?.microphone_state, audio_context_sample_rate: mic?.audio_context_sample_rate, channels: mic?.channels, browser_frames_produced: mic?.transport?.browser_frames_produced, browser_frames_sent: mic?.transport?.browser_frames_sent, browser_frames_dropped: mic?.transport?.browser_frames_dropped, transport_sequence_gap_count: mic?.transport?.sequence_gap_count, inferences: this.acceptanceInferences }));
+    this.appendAcceptanceInference({ audio_window_sequence: event.audio_window_sequence, raw_spoof_score: event.synthetic_probability, aggregate_score: event.aggregate_spoof_evidence ?? event.synthetic_probability, policy_state: event.overall_risk_score === 70 ? "ELEVATED_AUTHENTICITY_REVIEW" : "NORMAL", overall_risk_score: event.overall_risk_score, risk_level: event.risk_level, recommended_action: event.recommended_action, ml_inference_latency_ms: event.inference_latency_ms, steady_state_latency_ms: steadyLatency, score_semantics: "uncalibrated" });
+    this.publishAcceptanceState(event.call_id);
   }
 
   /** Publishes the current ephemeral acceptance snapshot. */
-  private publishAcceptanceState(): void {
+  private appendAcceptanceInference(inference: AcceptanceInference): void {
+    if (this.acceptanceInferences.length === LiveCallRiskStreamSource.maxAcceptanceInferences) this.acceptanceInferences.shift();
+    this.acceptanceInferences.push(inference);
+  }
+
+  private publishAcceptanceState(callId?: string): void {
     const mic = this.microphone?.getAcceptanceSnapshot?.();
-    if (!this.session && !mic?.call_id) return;
-    publishAcceptanceSnapshot(createAcceptanceSnapshot({ call_id: this.session?.call_id ?? mic?.call_id ?? "unknown", microphone_state: mic?.microphone_state, audio_context_sample_rate: mic?.audio_context_sample_rate, channels: mic?.channels, browser_frames_produced: mic?.transport?.browser_frames_produced, browser_frames_sent: mic?.transport?.browser_frames_sent, browser_frames_dropped: mic?.transport?.browser_frames_dropped, transport_sequence_gap_count: mic?.transport?.sequence_gap_count, inferences: this.acceptanceInferences }));
+    const resolvedCallId = callId ?? this.session?.call_id ?? mic?.call_id;
+    if (!resolvedCallId) return;
+    publishAcceptanceSnapshot(createAcceptanceSnapshot({ call_id: resolvedCallId, microphone_state: mic?.microphone_state, audio_context_sample_rate: mic?.audio_context_sample_rate, channels: mic?.channels, browser_frames_produced: mic?.transport?.browser_frames_produced, browser_frames_sent: mic?.transport?.browser_frames_sent, browser_frames_dropped: mic?.transport?.browser_frames_dropped, transport_sequence_gap_count: mic?.transport?.sequence_gap_count, cleanup: mic?.cleanup, inferences: this.acceptanceInferences }));
   }
 
   /** Rolls back every resource acquired by a failed live startup. */
@@ -146,6 +157,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
     this.stream = undefined;
     await stream?.stop();
     await this.microphone?.stop();
+    this.publishAcceptanceState();
     await this.stopBackendSession();
     this.stopping = false;
   }
@@ -153,6 +165,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   /** Terminates microphone capture when the risk transport disappears unexpectedly. */
   private async handleUnexpectedRiskDisconnect(): Promise<void> {
     await this.microphone?.stop();
+    this.publishAcceptanceState();
     await this.stopBackendSession();
   }
 

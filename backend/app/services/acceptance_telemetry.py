@@ -8,6 +8,7 @@ import time
 from typing import Any
 
 DEFAULT_MAX_INFERENCES = 50
+DEFAULT_MAX_SNAPSHOTS = 16
 
 
 @dataclass
@@ -90,14 +91,20 @@ class AcceptanceTelemetry:
 
 
 class AcceptanceTelemetryRegistry:
-    """Owns ephemeral per-call acceptance snapshots."""
+    """Owns a bounded, ephemeral set of per-call acceptance snapshots."""
 
-    def __init__(self) -> None:
-        """Creates an empty registry."""
+    def __init__(self, max_snapshots: int = DEFAULT_MAX_SNAPSHOTS) -> None:
+        """Creates a registry that retains only a bounded completed-call history."""
+        if max_snapshots < 1:
+            raise ValueError("max_snapshots must be positive")
+        self.max_snapshots = max_snapshots
         self._items: dict[str, AcceptanceTelemetry] = {}
 
     def create(self, call_id: str) -> AcceptanceTelemetry:
-        """Creates a fresh snapshot for a new call."""
+        """Creates a fresh snapshot after evicting completed snapshots as needed."""
+        self._evict_completed()
+        if call_id not in self._items and len(self._items) >= self.max_snapshots:
+            raise RuntimeError("acceptance telemetry registry is at active-session capacity")
         telemetry = AcceptanceTelemetry(call_id)
         self._items[call_id] = telemetry
         return telemetry
@@ -109,3 +116,11 @@ class AcceptanceTelemetryRegistry:
     def remove(self, call_id: str) -> None:
         """Discards a disposed call snapshot."""
         self._items.pop(call_id, None)
+
+    def _evict_completed(self) -> None:
+        """Drops the oldest inactive snapshots before accepting another call."""
+        for call_id, telemetry in tuple(self._items.items()):
+            if len(self._items) < self.max_snapshots:
+                return
+            if not telemetry.snapshot()["cleanup"]["session_active"]:
+                self._items.pop(call_id, None)
