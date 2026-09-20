@@ -102,16 +102,16 @@ export class MicrophoneSession {
   }
 
   /** Invalidates stale callbacks and performs idempotent teardown. */
-  public reset(): void {
+  public async reset(): Promise<void> {
     ++this.generation;
-    void this.cleanupResources();
+    await this.cleanupResources();
     this.setState("IDLE");
   }
 
   /** Releases resources without initiating another lifecycle transition. */
-  public dispose(): void {
+  public async dispose(): Promise<void> {
     ++this.generation;
-    void this.cleanupResources();
+    await this.cleanupResources();
   }
 
   /** Returns ephemeral microphone metadata without exposing audio samples. */

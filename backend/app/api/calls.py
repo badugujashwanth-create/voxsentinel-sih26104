@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from dataclasses import replace
 from functools import lru_cache
@@ -119,7 +120,8 @@ async def start_call(call_id: str, service: CallService = Depends(get_call_servi
     if isinstance(provider, MLRiskProvider):
         try:
             runtime_session = await provider.prepare_session(call_id)
-            telemetry = get_acceptance_telemetry_registry().create(call_id)
+            if os.getenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY", "") == "1":
+                get_acceptance_telemetry_registry().create(call_id)
         except MLServiceError as error:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start unavailable: {error}") from error
         except Exception as error:

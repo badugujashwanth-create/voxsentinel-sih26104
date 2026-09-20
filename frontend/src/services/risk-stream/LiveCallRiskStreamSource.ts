@@ -95,11 +95,15 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   public reset(): void {
     this.lifecycleGeneration += 1;
     this.stopping = true;
+    void this.finishReset();
+  }
+
+  private async finishReset(): Promise<void> {
     this.stream?.dispose();
-    this.microphone?.reset();
-    this.publishAcceptanceState();
+    await this.microphone?.reset();
     this.stream = undefined;
-    void this.stopBackendSession();
+    this.publishAcceptanceState();
+    await this.stopBackendSession();
     this.stopping = false;
     this.emitStatus("IDLE");
   }
@@ -108,12 +112,16 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   public dispose(): void {
     this.lifecycleGeneration += 1;
     this.stopping = true;
+    void this.finishDispose();
+  }
+
+  private async finishDispose(): Promise<void> {
     this.stream?.dispose();
-    this.microphone?.dispose();
-    this.publishAcceptanceState();
+    await this.microphone?.dispose();
     this.stream = undefined;
+    this.publishAcceptanceState();
     this.handlers = undefined;
-    void this.stopBackendSession();
+    await this.stopBackendSession();
     this.stopping = false;
   }
 
