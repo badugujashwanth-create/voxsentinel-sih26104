@@ -19,6 +19,7 @@ from app.services.audio_conversion import decode_and_canonicalize
 from app.services.audio_protocol import AudioProtocolError, AudioStartMetadata
 from app.services.audio_stream import AudioStreamHandler
 from app.services.ml_service_client import MLServiceClient, MLServiceError
+from app.services.acceptance_telemetry import AcceptanceTelemetryRegistry
 from app.services.risk_provider import MLRiskProvider, MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
 
@@ -66,6 +67,11 @@ def get_audio_session_registry() -> AudioSessionRegistry:
 
 
 @lru_cache(maxsize=1)
+def get_acceptance_telemetry_registry() -> AcceptanceTelemetryRegistry:
+    """Returns ephemeral acceptance snapshots for local verification."""
+    return AcceptanceTelemetryRegistry()
+
+@lru_cache(maxsize=1)
 def get_risk_provider() -> RiskProvider:
     """Returns the configured risk provider.
 
@@ -73,7 +79,7 @@ def get_risk_provider() -> RiskProvider:
     """
     settings = get_settings()
     if settings.risk_provider_mode.value == "ml":
-        return MLRiskProvider(get_audio_session_registry(), MLServiceClient(settings.ml_service_url))
+        return MLRiskProvider(get_audio_session_registry(), MLServiceClient(settings.ml_service_url), get_acceptance_telemetry_registry())
     return MockRiskProvider(emit_interval_ms=settings.risk_emit_interval_ms)
 
 
@@ -87,6 +93,17 @@ def create_call(request: CreateCallRequest, service: CallService = Depends(get_c
     """Opens a call session in ``CREATED``."""
     return service.create(request)
 
+
+@router.get("/{call_id}/acceptance-telemetry")
+async def read_acceptance_telemetry(call_id: str) -> object:
+    """Returns opt-in local acceptance metadata without audio payloads."""
+    import os
+    if os.getenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY", "") != "1":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Acceptance telemetry is disabled")
+    telemetry = get_acceptance_telemetry_registry().get(call_id)
+    if telemetry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No acceptance telemetry for call")
+    return telemetry.snapshot()
 
 @router.get("/{call_id}", response_model=CallSession)
 def read_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
@@ -102,6 +119,7 @@ async def start_call(call_id: str, service: CallService = Depends(get_call_servi
     if isinstance(provider, MLRiskProvider):
         try:
             runtime_session = await provider.prepare_session(call_id)
+            telemetry = get_acceptance_telemetry_registry().create(call_id)
         except MLServiceError as error:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start unavailable: {error}") from error
         except Exception as error:
@@ -121,6 +139,8 @@ async def stop_call(call_id: str, service: CallService = Depends(get_call_servic
     provider = get_risk_provider()
     if isinstance(provider, MLRiskProvider):
         await provider.close_session(call_id)
+        telemetry = get_acceptance_telemetry_registry().get(call_id)
+        if telemetry is not None: telemetry.mark_cleanup()
     return result
 
 
@@ -169,6 +189,7 @@ async def stream_risk(websocket: WebSocket, call_id: str) -> None:
     runtime_session = None
     if isinstance(provider, MLRiskProvider):
         runtime_session = get_audio_session_registry().get(call_id)
+        telemetry = get_acceptance_telemetry_registry().get(call_id)
         if runtime_session is None:
             await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML runtime session is not registered")
             return
@@ -211,10 +232,11 @@ async def stream_audio(websocket: WebSocket, call_id: str) -> None:
         await websocket.close(code=WS_CALL_NOT_LIVE, reason=f"Call is {session.status}, not LIVE")
         return
     runtime_session = get_audio_session_registry().get(call_id)
+    telemetry = get_acceptance_telemetry_registry().get(call_id)
     if runtime_session is None:
         await websocket.close(code=WS_CALL_NOT_LIVE, reason="ML runtime session is not registered")
         return
-    handler = AudioStreamHandler(get_audio_session_registry(), runtime_session)
+    handler = AudioStreamHandler(get_audio_session_registry(), runtime_session, telemetry)
     normal = False
     closed = False
     try:

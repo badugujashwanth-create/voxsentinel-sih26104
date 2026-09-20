@@ -84,6 +84,7 @@ class LiveRiskEvent(BaseModel):
     audio_source_transport_sequence_end: int | None = Field(default=None, ge=1)
     audio_source_gap_count: int | None = Field(default=None, ge=0)
     audio_window_sequence: int | None = Field(default=None, ge=1)
+    aggregate_spoof_evidence: Probability | None = None
 
     @model_validator(mode="after")
     def _check_frontend_invariants(self) -> LiveRiskEvent:

@@ -54,6 +54,11 @@ export class AudioTransport {
     this.socket.close?.();
   }
 
+  /** Returns a detached copy of transport counters for acceptance tooling. */
+  public getTelemetry(): AudioTransportTelemetry {
+    return { ...this.telemetry };
+  }
+
   private shouldDrop(): boolean {
     if (this.congested && this.socket.bufferedAmount < AUDIO_WS_LOW_WATERMARK_BYTES) this.congested = false;
     if (!this.congested && this.socket.bufferedAmount > AUDIO_WS_HIGH_WATERMARK_BYTES) this.congested = true;

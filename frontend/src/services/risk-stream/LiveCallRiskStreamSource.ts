@@ -3,6 +3,9 @@ import { CallSessionClient, type CallSessionClientOptions, type CallSessionOpera
 import type { RiskStreamHandlers, RiskStreamSource, RiskStreamStatus } from "./RiskStreamSource";
 import { WebSocketRiskStreamSource } from "./WebSocketRiskStreamSource";
 import type { MicrophoneSession } from "../../audio/microphone-session";
+import { createAcceptanceSnapshot, publishAcceptanceSnapshot, type AcceptanceInference } from "../../audio/acceptance-telemetry";
+import type { LiveRiskEvent } from "../../domain/risk";
+import { captureEndPerformanceMs, steadyStateLatencyMs } from "../../audio/timing";
 
 export interface LiveCallRequest {
   claimed_identity: string;
@@ -11,9 +14,11 @@ export interface LiveCallRequest {
   currency?: string;
 }
 
+type MicrophoneLike = Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose"> & { getAcceptanceSnapshot?: MicrophoneSession["getAcceptanceSnapshot"] };
+
 export interface LiveCallRiskStreamSourceOptions extends CallSessionClientOptions {
   request: LiveCallRequest;
-  microphone?: Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose">;
+  microphone?: MicrophoneLike;
 }
 
 /** Orchestrates backend call creation, start, streaming, and stop lifecycle. */
@@ -26,8 +31,9 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private started = false;
   private stopping = false;
   private handlers: RiskStreamHandlers | undefined;
-  private readonly microphone?: Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose">;
+  private readonly microphone?: MicrophoneLike;
   private lifecycleGeneration = 0;
+  private readonly acceptanceInferences: AcceptanceInference[] = [];
 
   /** Creates a live source that owns one backend call session. */
   public constructor(options: LiveCallRiskStreamSourceOptions, client: CallSessionOperations = new CallSessionClient(options)) {
@@ -109,13 +115,28 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   /** Wraps stream status so a normal socket close completes the backend call. */
   private createStreamHandlers(handlers: RiskStreamHandlers): RiskStreamHandlers {
     return {
-      onEvent: handlers.onEvent,
+      onEvent: (event) => { handlers.onEvent(event); this.recordAcceptanceEvent(event); },
       onError: handlers.onError,
       onStatusChange: (status) => {
         handlers.onStatusChange(status);
         if (status === "DISCONNECTED" && !this.stopping) void this.handleUnexpectedRiskDisconnect();
       },
     };
+  }
+
+  /** Records bounded risk metadata and publishes the dev-only browser snapshot. */
+  private recordAcceptanceEvent(event: LiveRiskEvent): void {
+    const mic = this.microphone?.getAcceptanceSnapshot?.();
+    const steadyLatency = event.audio_source_frame_end !== undefined && mic?.timing_anchor ? steadyStateLatencyMs(performance.now(), captureEndPerformanceMs(BigInt(event.audio_source_frame_end), mic.timing_anchor)) : null;
+    this.acceptanceInferences.push({ audio_window_sequence: event.audio_window_sequence, raw_spoof_score: event.synthetic_probability, aggregate_score: event.aggregate_spoof_evidence ?? event.synthetic_probability, policy_state: event.overall_risk_score === 70 ? "ELEVATED_AUTHENTICITY_REVIEW" : "NORMAL", overall_risk_score: event.overall_risk_score, risk_level: event.risk_level, recommended_action: event.recommended_action, ml_inference_latency_ms: event.inference_latency_ms, steady_state_latency_ms: steadyLatency, score_semantics: "uncalibrated" });
+    publishAcceptanceSnapshot(createAcceptanceSnapshot({ call_id: event.call_id, microphone_state: mic?.microphone_state, audio_context_sample_rate: mic?.audio_context_sample_rate, channels: mic?.channels, browser_frames_produced: mic?.transport?.browser_frames_produced, browser_frames_sent: mic?.transport?.browser_frames_sent, browser_frames_dropped: mic?.transport?.browser_frames_dropped, transport_sequence_gap_count: mic?.transport?.sequence_gap_count, inferences: this.acceptanceInferences }));
+  }
+
+  /** Publishes the current ephemeral acceptance snapshot. */
+  private publishAcceptanceState(): void {
+    const mic = this.microphone?.getAcceptanceSnapshot?.();
+    if (!this.session && !mic?.call_id) return;
+    publishAcceptanceSnapshot(createAcceptanceSnapshot({ call_id: this.session?.call_id ?? mic?.call_id ?? "unknown", microphone_state: mic?.microphone_state, audio_context_sample_rate: mic?.audio_context_sample_rate, channels: mic?.channels, browser_frames_produced: mic?.transport?.browser_frames_produced, browser_frames_sent: mic?.transport?.browser_frames_sent, browser_frames_dropped: mic?.transport?.browser_frames_dropped, transport_sequence_gap_count: mic?.transport?.sequence_gap_count, inferences: this.acceptanceInferences }));
   }
 
   /** Rolls back every resource acquired by a failed live startup. */

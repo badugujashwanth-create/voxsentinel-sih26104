@@ -9,6 +9,7 @@ from app.services.async_session import AsyncCallSession, AudioSessionRegistry, S
 from app.services.audio_protocol import AudioProtocolError, AudioStartMetadata, ParsedAudioFrame, parse_audio_frame, validate_frame_continuity
 from app.services.audio_source_ledger import AudioSourceSegment
 from app.services.streaming_audio_canonicalizer import StreamingAudioCanonicalizer
+from app.services.acceptance_telemetry import AcceptanceTelemetry
 
 
 @dataclass(frozen=True)
@@ -22,10 +23,11 @@ class CanonicalAudioChunk:
 class AudioStreamHandler:
     """Owns one producer, canonicalizer, and source timeline for a call."""
 
-    def __init__(self, registry: AudioSessionRegistry, session: AsyncCallSession) -> None:
+    def __init__(self, registry: AudioSessionRegistry, session: AsyncCallSession, telemetry: AcceptanceTelemetry | None = None) -> None:
         """Creates a handler over the already-registered runtime session."""
         self.registry = registry
         self.session = session
+        self.telemetry = telemetry
         self.metadata: AudioStartMetadata | None = None
         self.canonicalizer: StreamingAudioCanonicalizer | None = None
         self.previous_sequence: int | None = None
@@ -44,6 +46,12 @@ class AudioStreamHandler:
         self._claimed = True
         self.metadata = metadata
         self.canonicalizer = StreamingAudioCanonicalizer(metadata.sample_rate, metadata.channels)
+        if self.telemetry is not None:
+            self.telemetry.audio_context_sample_rate = metadata.sample_rate
+            self.telemetry.channels = metadata.channels
+            self.telemetry.microphone_state = "STREAMING"
+            self.telemetry._cleanup["producer_active"] = True
+            self.telemetry._cleanup["canonicalizer_active"] = True
 
     async def receive_binary(self, payload: bytes) -> None:
         """Validates, canonicalizes, and schedules one binary transport frame."""

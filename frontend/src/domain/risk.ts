@@ -39,6 +39,7 @@ export interface LiveRiskEvent {
   audio_source_transport_sequence_end?: number;
   audio_source_gap_count?: number;
   audio_window_sequence?: number;
+  aggregate_spoof_evidence?: number;
 }
 
 const MIN_RISK_SCORE = 0;
@@ -98,6 +99,7 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     }
   }
 
+  if (event.aggregate_spoof_evidence !== undefined && !isProbability(event.aggregate_spoof_evidence)) throw new Error("Risk event aggregate_spoof_evidence is invalid");
   return {
     call_id: event.call_id,
     sequence: event.sequence,
@@ -123,6 +125,7 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     audio_source_transport_sequence_end: event.audio_source_transport_sequence_end,
     audio_source_gap_count: event.audio_source_gap_count,
     audio_window_sequence: event.audio_window_sequence,
+    aggregate_spoof_evidence: event.aggregate_spoof_evidence,
   };
 }
 

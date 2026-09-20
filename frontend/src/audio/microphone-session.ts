@@ -1,6 +1,9 @@
 import { AudioTransport, type AudioSocketLike } from "./audio-transport";
 import { AudioWorkletBridge, type AudioFrameHandler } from "./audio-worklet-bridge";
 import { encodeAudioStart } from "./protocol";
+import type { AudioTransportTelemetry } from "./audio-transport";
+import type { AudioTimingAnchor } from "./timing";
+import { createAudioTimingAnchor } from "./timing";
 
 export type MicrophoneState = "IDLE" | "REQUESTING_PERMISSION" | "CONNECTING" | "STREAMING" | "STOPPING" | "ERROR";
 
@@ -31,6 +34,11 @@ export class MicrophoneSession {
   private bridge: AudioWorkletBridge | undefined;
   private sourceNode: MediaStreamAudioSourceNode | undefined;
   private transport: AudioTransport | undefined;
+  private callId: string | undefined;
+  private audioReadyAt: number | undefined;
+  private timingAnchor: AudioTimingAnchor | undefined;
+  private lastTransportTelemetry: AudioTransportTelemetry | undefined;
+  private lastSampleRate: number | undefined;
   public state: MicrophoneState = "IDLE";
 
   public constructor(dependencies: MicrophoneSessionDependencies = {}, onStateChange?: (state: MicrophoneState) => void) {
@@ -60,6 +68,10 @@ export class MicrophoneSession {
       await waitForSocketOpen(this.socket);
       this.socket.send(encodeAudioStart({ protocol_version: 1, sample_rate: this.context.sampleRate, channels: 1, sample_format: "float32le" }));
       await waitForAudioReady(this.socket);
+      this.lastSampleRate = this.context.sampleRate;
+      this.audioReadyAt = Number.isFinite(performance.now()) ? performance.now() : Date.now();
+      const contextCurrentTime = Number.isFinite(this.context.currentTime) ? this.context.currentTime : 0;
+      this.timingAnchor = createAudioTimingAnchor(contextCurrentTime, this.audioReadyAt, this.context.sampleRate);
       if (token !== this.generation) return this.cleanupResources();
       this.transport = new AudioTransport(this.socket);
       this.bridge = this.dependencies.createBridge(this.context, 1, (frame) => this.transport?.sendFrame(frame), this.sourceNode);
@@ -97,6 +109,11 @@ export class MicrophoneSession {
     void this.cleanupResources();
   }
 
+  /** Returns ephemeral microphone metadata without exposing audio samples. */
+  public getAcceptanceSnapshot(): { call_id?: string; microphone_state: MicrophoneState; audio_context_sample_rate?: number; channels?: number; audio_ready_at?: number; timing_anchor?: AudioTimingAnchor; transport?: AudioTransportTelemetry; cleanup: { tracks_active: boolean; audio_context_active: boolean; audio_socket_active: boolean } } {
+    return { call_id: this.callId, microphone_state: this.state, audio_context_sample_rate: this.context?.sampleRate ?? this.lastSampleRate, channels: this.context ? 1 : (this.lastTransportTelemetry ? 1 : undefined), audio_ready_at: this.audioReadyAt, timing_anchor: this.timingAnchor, transport: this.transport?.getTelemetry() ?? this.lastTransportTelemetry, cleanup: { tracks_active: Boolean(this.stream), audio_context_active: Boolean(this.context), audio_socket_active: Boolean(this.socket) } };
+  }
+
   private async handleUnexpectedDisconnect(): Promise<void> {
     if (this.state !== "STREAMING") return;
     ++this.generation;
@@ -105,6 +122,7 @@ export class MicrophoneSession {
   }
 
   private async cleanupResources(): Promise<void> {
+    if (this.transport) this.lastTransportTelemetry = this.transport.getTelemetry();
     this.bridge?.dispose();
     this.bridge = undefined;
     if (this.socket && this.socket.readyState === 1) this.socket.close?.();
