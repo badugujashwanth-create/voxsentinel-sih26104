@@ -1,4 +1,5 @@
 import { AudioFrameAccumulator } from "./audio-frame-accumulator";
+import { selectTransportChannels } from "./worklet-input";
 
 declare abstract class AudioWorkletProcessor {
   readonly port: MessagePort;
@@ -26,7 +27,7 @@ class VoxSentinelMicrophoneProcessor extends AudioWorkletProcessor {
   public process(inputs: Float32Array[][]): boolean {
     const input = inputs[0];
     if (!input || input.length === 0 || input[0].length === 0) return true;
-    const channels = input.length === 2 ? [input[0], input[1]] : [input[0]];
+    const channels = selectTransportChannels(input, this.accumulator.channelCount);
     for (const frame of this.accumulator.append(channels, BigInt(currentFrame))) {
       this.port.postMessage({ type: "frame", firstSampleFrame: frame.firstSampleFrame, channels: frame.channels, samples: frame.samples }, [frame.samples.buffer]);
     }

@@ -52,6 +52,11 @@ export class AudioFrameAccumulator {
     return this.buffers[0].length;
   }
 
+  /** Returns the configured transport channel count for the worklet boundary. */
+  public get channelCount(): 1 | 2 {
+    return this.channels;
+  }
+
   private validateQuantum(channelSamples: Float32Array[]): void {
     if (channelSamples.length !== this.channels || channelSamples.some((samples) => samples.length !== channelSamples[0].length)) throw new Error("Audio quantum channel shape is invalid");
   }
