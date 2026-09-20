@@ -29,6 +29,10 @@ const liveEvent = {
   },
 };
 
+function buildDisconnectedMicrophoneController(stop: () => Promise<void>): DemoController {
+  return { ...buildController(stop), streamStatus: 'DISCONNECTED' };
+}
+
 function buildController(stop: () => Promise<void>): DemoController {
   return {
     mode: "LIVE",
@@ -67,5 +71,13 @@ describe("SecurityConsole live controls", () => {
     await user.click(screen.getByRole("button", { name: "Stop analysis" }));
 
     expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it('keeps stop available when the live risk stream is terminal but the microphone is active', async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    render(<SecurityConsole controller={buildDisconnectedMicrophoneController(stop)} verificationOpen={false} onOpenVerification={vi.fn()} onCloseVerification={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Stop analysis' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
   });
 });
