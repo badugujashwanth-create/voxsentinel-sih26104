@@ -77,10 +77,14 @@ class AudioStreamHandler:
         self.previous_sequence = frame.frame_sequence
         self.previous_source_end = frame.source_frame_end
         canonical, _ = self.canonicalizer.push_with_metadata(frame.samples, source)
+        if self.telemetry is not None:
+            self.telemetry.canonical_samples += int(canonical.size)
         if canonical.size:
             acknowledgement = self.registry.ingest_canonical(self.session.call_id, CanonicalAudioChunk(canonical, source), frame.frame_sequence)
             if self.telemetry is not None:
-                self.telemetry.update_audio(canonical_samples=acknowledgement.accepted_sample_count, windows_generated=acknowledgement.windows_enqueued, windows_dropped=acknowledgement.dropped_window_count, source_gap_count=self.source_gap_count)
+                self.telemetry.aasist_windows_generated += acknowledgement.windows_enqueued
+                self.telemetry.backend_windows_dropped = acknowledgement.dropped_window_count
+                self.telemetry.source_gap_count = self.source_gap_count
 
     async def close(self, normal: bool) -> None:
         """Flushes normal input and releases producer ownership idempotently."""
