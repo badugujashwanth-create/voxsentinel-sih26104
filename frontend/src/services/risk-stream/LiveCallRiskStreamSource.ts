@@ -27,6 +27,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private stopping = false;
   private handlers: RiskStreamHandlers | undefined;
   private readonly microphone?: Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose">;
+  private lifecycleGeneration = 0;
 
   /** Creates a live source that owns one backend call session. */
   public constructor(options: LiveCallRiskStreamSourceOptions, client: CallSessionOperations = new CallSessionClient(options)) {
@@ -38,12 +39,17 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
 
   /** Creates and starts the backend call before opening its risk stream. */
   public async start(handlers: RiskStreamHandlers): Promise<void> {
+    const generation = ++this.lifecycleGeneration;
     this.handlers = handlers;
     this.emitStatus("CONNECTING");
     try {
       this.session = await this.client.createCall(this.request);
       await this.client.startCall(this.session.call_id);
       this.started = true;
+      if (generation !== this.lifecycleGeneration) {
+        await this.stopBackendSession();
+        return;
+      }
       this.stream = new WebSocketRiskStreamSource(this.session.call_id, this.baseUrl);
       await this.stream.start(this.createStreamHandlers(handlers));
       await this.microphone?.start(this.session.call_id);
@@ -55,6 +61,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
 
   /** Closes the stream and completes a started backend call. */
   public async stop(): Promise<void> {
+    this.lifecycleGeneration += 1;
     this.stopping = true;
     const stream = this.stream;
     this.stream = undefined;
@@ -77,6 +84,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
 
   /** Disposes the stream and asynchronously completes the backend session. */
   public reset(): void {
+    this.lifecycleGeneration += 1;
     this.stopping = true;
     this.stream?.dispose();
     this.microphone?.reset();
@@ -88,6 +96,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
 
   /** Releases handlers and closes any live resources without retaining state. */
   public dispose(): void {
+    this.lifecycleGeneration += 1;
     this.stopping = true;
     this.stream?.dispose();
     this.microphone?.dispose();
@@ -128,10 +137,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
 
   /** Stops a started backend session once and releases its identity. */
   private async stopBackendSession(): Promise<void> {
-    if (!this.session || !this.started) {
-      this.session = undefined;
-      return;
-    }
+    if (!this.session || !this.started) return;
     const callId = this.session.call_id;
     this.session = undefined;
     this.started = false;

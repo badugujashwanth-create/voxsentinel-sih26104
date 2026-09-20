@@ -55,6 +55,20 @@ describe("LiveCallRiskStreamSource", () => {
     await vi.waitFor(() => expect(client.stopCall).toHaveBeenCalledWith("backend-call-42"));
   });
 
+  it("stops a call when reset races with backend start", async () => {
+    const liveResponse = { ...responseSession, status: "LIVE" as const };
+    let resolveStart: ((value: typeof liveResponse) => void) | undefined;
+    const startResult = new Promise<typeof liveResponse>((resolve) => { resolveStart = resolve; });
+    const client = { createCall: vi.fn().mockResolvedValue(responseSession), startCall: vi.fn().mockReturnValue(startResult), stopCall: vi.fn().mockResolvedValue({ ...responseSession, status: "COMPLETED" }) };
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" } }, client);
+
+    const startPromise = source.start(handlers());
+    await vi.waitFor(() => expect(client.startCall).toHaveBeenCalledWith("backend-call-42"));
+    source.reset();
+    resolveStart?.(liveResponse);
+    await startPromise;
+    await vi.waitFor(() => expect(client.stopCall).toHaveBeenCalledWith("backend-call-42"));
+  });
   it("reports create failures and never opens a socket", async () => {
     const client = { createCall: vi.fn().mockRejectedValue(new Error("backend unavailable")), startCall: vi.fn(), stopCall: vi.fn() };
     const received = handlers();
