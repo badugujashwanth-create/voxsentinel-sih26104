@@ -78,7 +78,9 @@ class AudioStreamHandler:
         self.previous_source_end = frame.source_frame_end
         canonical, _ = self.canonicalizer.push_with_metadata(frame.samples, source)
         if canonical.size:
-            self.registry.ingest_canonical(self.session.call_id, CanonicalAudioChunk(canonical, source), frame.frame_sequence)
+            acknowledgement = self.registry.ingest_canonical(self.session.call_id, CanonicalAudioChunk(canonical, source), frame.frame_sequence)
+            if self.telemetry is not None:
+                self.telemetry.update_audio(canonical_samples=acknowledgement.accepted_sample_count, windows_generated=acknowledgement.windows_enqueued, windows_dropped=acknowledgement.dropped_window_count, source_gap_count=self.source_gap_count)
 
     async def close(self, normal: bool) -> None:
         """Flushes normal input and releases producer ownership idempotently."""
