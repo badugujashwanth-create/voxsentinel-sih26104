@@ -25,6 +25,7 @@ export interface DemoController {
   selectScenario(scenarioId: ScenarioId): void;
   selectMode(mode: DemoMode): void;
   start(): Promise<void>;
+  stop(): Promise<void>;
   pause(): void;
   resume(): void;
   reset(): void;
@@ -99,6 +100,7 @@ export function useDemoController(): DemoController {
     selectScenario,
     selectMode,
     start: stream.start,
+    stop: stream.stop,
     pause: stream.pause,
     resume: stream.resume,
     reset,

@@ -1,0 +1,71 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { initialVerificationState } from "../../domain/verification";
+import type { DemoController } from "../../hooks/useDemoController";
+import { SecurityConsole } from "./SecurityConsole";
+
+const liveEvent = {
+  call_id: "live-call-1",
+  sequence: 1,
+  timestamp_ms: 1000,
+  synthetic_probability: 0.1,
+  speaker_match_score: 0,
+  speaker_mismatch_score: 0,
+  prosody_anomaly_score: 0,
+  replay_risk_score: 0,
+  context_risk_score: 0,
+  overall_risk_score: 20,
+  risk_level: "LOW" as const,
+  reasons: ["Voice signal remains within baseline"],
+  recommended_action: "MONITOR" as const,
+  synthetic_score_semantics: "uncalibrated" as const,
+  evidence_availability: {
+    speaker_match_score: "NOT_EVALUATED" as const,
+    speaker_mismatch_score: "NOT_EVALUATED" as const,
+    prosody_anomaly_score: "NOT_EVALUATED" as const,
+    replay_risk_score: "NOT_EVALUATED" as const,
+    context_risk_score: "NOT_EVALUATED" as const,
+  },
+};
+
+function buildController(stop: () => Promise<void>): DemoController {
+  return {
+    mode: "LIVE",
+    selectedScenario: "GENUINE",
+    context: { caller: "Arjun Mehta", role: "Chief Financial Officer", request: "Vendor Transfer" },
+    presentationState: "CALM",
+    streamStatus: "LIVE",
+    streamError: null,
+    currentEvent: liveEvent,
+    timeline: [liveEvent],
+    voiceRisk: { score: 20, level: "LOW", reasons: liveEvent.reasons },
+    identityVerification: initialVerificationState,
+    protectedAction: { status: "MONITORING", label: "Transaction monitoring" },
+    selectScenario: vi.fn(),
+    selectMode: vi.fn(),
+    start: vi.fn(),
+    stop,
+    pause: vi.fn(),
+    resume: vi.fn(),
+    reset: vi.fn(),
+    beginVerification: vi.fn(),
+    completeVerification: vi.fn(),
+    failVerification: vi.fn(),
+    callId: liveEvent.call_id,
+    liveMode: true,
+    microphoneState: "STREAMING",
+  };
+}
+
+describe("SecurityConsole live controls", () => {
+  it("provides an explicit stop action for live microphone sessions", async () => {
+    const user = userEvent.setup();
+    const stop = vi.fn().mockResolvedValue(undefined);
+    render(<SecurityConsole controller={buildController(stop)} verificationOpen={false} onOpenVerification={vi.fn()} onCloseVerification={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Stop analysis" }));
+
+    expect(stop).toHaveBeenCalledOnce();
+  });
+});
