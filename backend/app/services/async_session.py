@@ -47,9 +47,6 @@ class AsyncCallSession:
         self.spoof_aggregator: Any | None = None
         self.risk_policy: Any | None = None
         self.event_sequence = 0
-        self.spoof_aggregator: Any | None = None
-        self.risk_policy: Any | None = None
-        self.event_sequence = 0
         self._stream_claimed = False
         self._audio_claimed = False
         self._closed = False

@@ -104,7 +104,7 @@ class AudioStreamHandler:
             self.canonicalizer.close()
         if self._claimed:
             self.registry.release_audio(self.session.call_id, self.session.generation_token)
-        if not normal:
+        if not normal and self._claimed:
             await self.registry.close(self.session.call_id, self.session.generation_token)
 
     @property
