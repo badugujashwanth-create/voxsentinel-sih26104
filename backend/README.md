@@ -6,6 +6,10 @@ JASH-004 keeps this service Torch-free. The default
 `VOXSENTINEL_ML_SERVICE_URL`; ML failures are surfaced and never replaced with
 mock results.
 
+Browser microphone mode additionally requires `soxr==1.1.0` from
+`backend/requirements.txt`. The backend owns stateful source-rate conversion,
+downmixing, source-frame correlation, and 64,600-sample AASIST windowing.
+
 See `docs/integration/JASH-004-ML-RUNTIME.md` for the real-audio setup.
 
 Ownership boundary: Rohan.
@@ -65,6 +69,7 @@ emitted.
 | `GET` | `/api/v1/calls/{call_id}` | Full current session state |
 | `POST` | `/api/v1/calls/{call_id}/start` | `CREATED` → `LIVE` |
 | `POST` | `/api/v1/calls/{call_id}/stop` | `LIVE` → `COMPLETED` |
+| `WS` | `/api/v1/calls/{call_id}/audio-stream` | Versioned browser PCM input |
 
 Create body:
 
@@ -180,7 +185,18 @@ backend/app/
 Streaming audio windowing lives at repo root in `ml/audio/chunker.py`
 (buffering only — no model, no classification).
 
+The browser path uses one `StreamingAudioCanonicalizer` per active producer;
+frames are never resampled independently. It reuses the same `AsyncCallSession`
+and bounded AASIST queue as the existing live ML path.
+
 ## Privacy
 
 No raw audio is stored or logged. No voice data is committed to this
 repository.
+
+The microphone path is ephemeral: no raw PCM is logged, persisted, downloaded,
+or stored in a database. Real AASIST output remains an uncalibrated model score;
+JASH-005 operational states remain only 20/LOW/MONITOR and
+70/HIGH/REQUIRE_CALLBACK. Speaker verification, replay detection, telephony,
+automatic reconnect, and physical microphone evidence are outside automated CI
+and require the documented acceptance run.

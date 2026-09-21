@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RiskStreamHandlers } from "./RiskStreamSource";
 import { LiveCallRiskStreamSource } from "./LiveCallRiskStreamSource";
+import type { LiveRiskEvent } from "../../domain/risk";
 
 const responseSession = { call_id: "backend-call-42", status: "CREATED" as const, claimed_identity: "Arjun Mehta", scenario: "HIGH_VALUE_TRANSFER_ATTACK" as const };
 
@@ -18,7 +19,9 @@ class FakeWebSocket {
 function handlers(): RiskStreamHandlers {
   return { onEvent: vi.fn(), onStatusChange: vi.fn(), onError: vi.fn() };
 }
-
+function liveEvent(sequence: number): LiveRiskEvent {
+  return { call_id: "backend-call-42", sequence, timestamp_ms: sequence, synthetic_probability: 0.1, speaker_match_score: 0, speaker_mismatch_score: 0, prosody_anomaly_score: 0, replay_risk_score: 0, context_risk_score: 0, overall_risk_score: 20, risk_level: "LOW", reasons: ["Uncalibrated spoof evidence remains below the provisional review threshold."], recommended_action: "MONITOR", audio_window_sequence: sequence };
+}
 describe("LiveCallRiskStreamSource", () => {
   beforeEach(() => vi.stubGlobal("WebSocket", FakeWebSocket));
 
@@ -55,6 +58,20 @@ describe("LiveCallRiskStreamSource", () => {
     await vi.waitFor(() => expect(client.stopCall).toHaveBeenCalledWith("backend-call-42"));
   });
 
+  it("stops a call when reset races with backend start", async () => {
+    const liveResponse = { ...responseSession, status: "LIVE" as const };
+    let resolveStart: ((value: typeof liveResponse) => void) | undefined;
+    const startResult = new Promise<typeof liveResponse>((resolve) => { resolveStart = resolve; });
+    const client = { createCall: vi.fn().mockResolvedValue(responseSession), startCall: vi.fn().mockReturnValue(startResult), stopCall: vi.fn().mockResolvedValue({ ...responseSession, status: "COMPLETED" }) };
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" } }, client);
+
+    const startPromise = source.start(handlers());
+    await vi.waitFor(() => expect(client.startCall).toHaveBeenCalledWith("backend-call-42"));
+    source.reset();
+    resolveStart?.(liveResponse);
+    await startPromise;
+    await vi.waitFor(() => expect(client.stopCall).toHaveBeenCalledWith("backend-call-42"));
+  });
   it("reports create failures and never opens a socket", async () => {
     const client = { createCall: vi.fn().mockRejectedValue(new Error("backend unavailable")), startCall: vi.fn(), stopCall: vi.fn() };
     const received = handlers();
@@ -64,5 +81,56 @@ describe("LiveCallRiskStreamSource", () => {
 
     expect(received.onError).toHaveBeenCalledWith(expect.objectContaining({ message: "backend unavailable" }));
     expect(client.startCall).not.toHaveBeenCalled();
+  });
+
+  it("starts microphone capture only after the real backend call is live", async () => {
+    const client = { createCall: vi.fn().mockResolvedValue(responseSession), startCall: vi.fn().mockResolvedValue({ ...responseSession, status: "LIVE" }), stopCall: vi.fn().mockResolvedValue({ ...responseSession, status: "COMPLETED" }) };
+    const microphone = { start: vi.fn().mockResolvedValue(undefined), stop: vi.fn().mockResolvedValue(undefined), reset: vi.fn(), dispose: vi.fn() };
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" }, microphone }, client);
+    await source.start(handlers());
+    expect(microphone.start).toHaveBeenCalledWith("backend-call-42");
+    await source.stop();
+    expect(microphone.stop).toHaveBeenCalledOnce();
+  });
+
+  it("rolls back the backend call when microphone startup fails", async () => {
+    const client = { createCall: vi.fn().mockResolvedValue(responseSession), startCall: vi.fn().mockResolvedValue({ ...responseSession, status: "LIVE" }), stopCall: vi.fn().mockResolvedValue({ ...responseSession, status: "COMPLETED" }) };
+    const microphone = { start: vi.fn().mockRejectedValue(new Error("permission denied")), stop: vi.fn().mockResolvedValue(undefined), reset: vi.fn(), dispose: vi.fn() };
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" }, microphone }, client);
+
+    await source.start(handlers());
+
+    expect(microphone.stop).toHaveBeenCalledOnce();
+    expect(client.stopCall).toHaveBeenCalledWith("backend-call-42");
+  });
+
+  it("tears down microphone capture when risk transport disconnects", async () => {
+    const client = { createCall: vi.fn().mockResolvedValue(responseSession), startCall: vi.fn().mockResolvedValue({ ...responseSession, status: "LIVE" }), stopCall: vi.fn().mockResolvedValue({ ...responseSession, status: "COMPLETED" }) };
+    const microphone = { start: vi.fn().mockResolvedValue(undefined), stop: vi.fn().mockResolvedValue(undefined), reset: vi.fn(), dispose: vi.fn() };
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" }, microphone }, client);
+    await source.start(handlers());
+    const socket = (source as unknown as { stream: { socket: FakeWebSocket } }).stream.socket;
+
+    socket.close();
+    await vi.waitFor(() => expect(microphone.stop).toHaveBeenCalledOnce());
+    expect(client.stopCall).toHaveBeenCalledWith("backend-call-42");
+  });
+  it("bounds stored acceptance inferences before publishing snapshots", () => {
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" } });
+    const record = (source as unknown as { recordAcceptanceEvent(event: LiveRiskEvent): void }).recordAcceptanceEvent.bind(source);
+    for (let sequence = 1; sequence <= 51; sequence += 1) record(liveEvent(sequence));
+    const stored = (source as unknown as { acceptanceInferences: LiveRiskEvent[] }).acceptanceInferences;
+    expect(stored).toHaveLength(50);
+    expect(stored[0].audio_window_sequence).toBe(2);
+  });
+
+  it.each(["stop", "reset", "dispose"] as const)("publishes final microphone cleanup after %s", async (operation) => {
+    const client = { createCall: vi.fn().mockResolvedValue(responseSession), startCall: vi.fn().mockResolvedValue({ ...responseSession, status: "LIVE" }), stopCall: vi.fn().mockResolvedValue({ ...responseSession, status: "COMPLETED" }) };
+    const cleanup = { tracks_active: false, audio_context_active: false, audio_socket_active: false };
+    const microphone = { start: vi.fn().mockResolvedValue(undefined), stop: vi.fn().mockResolvedValue(undefined), reset: vi.fn(), dispose: vi.fn(), getAcceptanceSnapshot: vi.fn(() => ({ call_id: "backend-call-42", microphone_state: "IDLE" as const, cleanup })) };
+    const source = new LiveCallRiskStreamSource({ request: { claimed_identity: "Arjun Mehta", scenario: "GENUINE" }, microphone }, client);
+    await source.start(handlers());
+    if (operation === "stop") await source.stop(); else source[operation]();
+    await vi.waitFor(() => expect((window as Window & { __VOXSENTINEL_ACCEPTANCE__?: unknown }).__VOXSENTINEL_ACCEPTANCE__).toEqual(expect.objectContaining({ call_id: "backend-call-42", microphone_state: "IDLE", cleanup })));
   });
 });

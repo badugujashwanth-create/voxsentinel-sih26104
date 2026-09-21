@@ -33,6 +33,13 @@ export interface LiveRiskEvent {
   preprocessing_latency_ms?: number;
   synthetic_score_semantics?: "uncalibrated";
   evidence_availability?: Record<string, EvidenceAvailability>;
+  audio_source_frame_start?: number;
+  audio_source_frame_end?: number;
+  audio_source_transport_sequence_start?: number;
+  audio_source_transport_sequence_end?: number;
+  audio_source_gap_count?: number;
+  audio_window_sequence?: number;
+  aggregate_spoof_evidence?: number;
 }
 
 const MIN_RISK_SCORE = 0;
@@ -86,7 +93,13 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
       throw new Error(`Risk event ${field} is invalid`);
     }
   }
+  for (const field of ["audio_source_frame_start", "audio_source_frame_end", "audio_source_transport_sequence_start", "audio_source_transport_sequence_end", "audio_source_gap_count", "audio_window_sequence"] as const) {
+    if (event[field] !== undefined && !isPositiveOrZeroInteger(event[field], field.startsWith("audio_source_transport_sequence") || field === "audio_window_sequence")) {
+      throw new Error(`Risk event ${field} is invalid`);
+    }
+  }
 
+  if (event.aggregate_spoof_evidence !== undefined && !isProbability(event.aggregate_spoof_evidence)) throw new Error("Risk event aggregate_spoof_evidence is invalid");
   return {
     call_id: event.call_id,
     sequence: event.sequence,
@@ -106,6 +119,13 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     preprocessing_latency_ms: event.preprocessing_latency_ms,
     synthetic_score_semantics: event.synthetic_score_semantics,
     evidence_availability: event.evidence_availability ? { ...event.evidence_availability } : undefined,
+    audio_source_frame_start: event.audio_source_frame_start,
+    audio_source_frame_end: event.audio_source_frame_end,
+    audio_source_transport_sequence_start: event.audio_source_transport_sequence_start,
+    audio_source_transport_sequence_end: event.audio_source_transport_sequence_end,
+    audio_source_gap_count: event.audio_source_gap_count,
+    audio_window_sequence: event.audio_window_sequence,
+    aggregate_spoof_evidence: event.aggregate_spoof_evidence,
   };
 }
 
@@ -134,6 +154,11 @@ function readProbability(event: Partial<LiveRiskEvent>, field: keyof Pick<LiveRi
 /** Checks whether a value is a positive integer. */
 function isPositiveInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+/** Checks an optional integer telemetry field with its configured lower bound. */
+function isPositiveOrZeroInteger(value: unknown, positive: boolean): value is number {
+  return typeof value === "number" && Number.isInteger(value) && Number.isFinite(value) && (positive ? value > 0 : value >= 0);
 }
 
 /** Checks whether a value is a known risk level. */

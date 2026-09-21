@@ -78,6 +78,13 @@ class LiveRiskEvent(BaseModel):
     preprocessing_latency_ms: float | None = Field(default=None, ge=0.0)
     synthetic_score_semantics: Literal["uncalibrated"] | None = None
     evidence_availability: dict[str, EvidenceAvailability] | None = None
+    audio_source_frame_start: int | None = Field(default=None, ge=0)
+    audio_source_frame_end: int | None = Field(default=None, ge=0)
+    audio_source_transport_sequence_start: int | None = Field(default=None, ge=1)
+    audio_source_transport_sequence_end: int | None = Field(default=None, ge=1)
+    audio_source_gap_count: int | None = Field(default=None, ge=0)
+    audio_window_sequence: int | None = Field(default=None, ge=1)
+    aggregate_spoof_evidence: Probability | None = None
 
     @model_validator(mode="after")
     def _check_frontend_invariants(self) -> LiveRiskEvent:

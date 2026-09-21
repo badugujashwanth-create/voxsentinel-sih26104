@@ -9,7 +9,7 @@ export function App() {
   const [verificationOpen, setVerificationOpen] = useState(false);
 
   if (!controller.selectedScenario || !controller.context) {
-    return <ScenarioLauncher onSelect={controller.selectScenario} />;
+    return <ScenarioLauncher mode={controller.mode} onModeChange={controller.selectMode} onSelect={controller.selectScenario} />;
   }
 
   return <SecurityConsole controller={controller} verificationOpen={verificationOpen} onOpenVerification={() => setVerificationOpen(true)} onCloseVerification={() => setVerificationOpen(false)} />;

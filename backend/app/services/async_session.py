@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from secrets import token_urlsafe
 from typing import Any
 
+from app.services.audio_source_ledger import AudioWindowMetadata
+
 
 class SessionClosedError(RuntimeError):
     """Raised when a caller uses a closed asynchronous session."""
@@ -18,6 +20,7 @@ class AudioWindow:
 
     sequence: int
     samples: Any
+    metadata: AudioWindowMetadata | None = None
 
 
 _CLOSED_SENTINEL = object()
@@ -44,10 +47,8 @@ class AsyncCallSession:
         self.spoof_aggregator: Any | None = None
         self.risk_policy: Any | None = None
         self.event_sequence = 0
-        self.spoof_aggregator: Any | None = None
-        self.risk_policy: Any | None = None
-        self.event_sequence = 0
         self._stream_claimed = False
+        self._audio_claimed = False
         self._closed = False
 
     @property
@@ -127,6 +128,20 @@ class AudioSessionRegistry:
         if session is not None and session.generation_token == generation_token:
             session._stream_claimed = False
 
+    def claim_audio(self, call_id: str, generation_token: str) -> bool:
+        """Claims the sole microphone producer for an active runtime session."""
+        session = self.get(call_id)
+        if session is None or session.is_closed or session.generation_token != generation_token or session._audio_claimed:
+            return False
+        session._audio_claimed = True
+        return True
+
+    def release_audio(self, call_id: str, generation_token: str) -> None:
+        """Releases the microphone producer claim without closing the call."""
+        session = self.get(call_id)
+        if session is not None and session.generation_token == generation_token:
+            session._audio_claimed = False
+
     async def close(self, call_id: str, generation_token: str | None = None) -> None:
         """Closes the current session when its optional generation matches."""
         session = self.get(call_id)
@@ -159,9 +174,10 @@ class AudioSessionRegistry:
             raise ValueError("audio chunk sequence must increase")
         if session.window_scheduler is None:
             session.window_scheduler = AASISTWindowScheduler()
-        windows = session.window_scheduler.push(canonical.samples)
-        for samples in windows:
-            session.enqueue_window(AudioWindow(session.allocate_window_sequence(), samples))
+        source_segment = getattr(canonical, "source_segment", None)
+        windows = session.window_scheduler.push_with_metadata(canonical.samples, source_segment)
+        for samples, metadata in windows:
+            session.enqueue_window(AudioWindow(session.allocate_window_sequence(), samples, metadata))
         session.last_chunk_sequence = chunk_sequence
         return AudioIngestAcknowledgement(
             call_id=call_id,

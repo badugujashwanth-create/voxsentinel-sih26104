@@ -225,3 +225,17 @@ def test_stream_is_deterministic() -> None:
     first = [event.model_dump() for event in events_for(ScenarioId.HIGH_VALUE_TRANSFER_ATTACK)]
     second = [event.model_dump() for event in events_for(ScenarioId.HIGH_VALUE_TRANSFER_ATTACK)]
     assert first == second
+
+
+def test_live_risk_event_accepts_optional_audio_correlation_metadata() -> None:
+    """Risk transport can carry source timing without changing policy fields."""
+    event = LiveRiskEvent(
+        call_id="call-1", sequence=1, timestamp_ms=1, synthetic_probability=0.1,
+        speaker_match_score=0.0, speaker_mismatch_score=0.0, prosody_anomaly_score=0.0,
+        replay_risk_score=0.0, context_risk_score=0.0, overall_risk_score=20,
+        risk_level=RiskLevel.LOW, reasons=[BASELINE_REASON], recommended_action=MONITOR,
+        audio_source_frame_start=100, audio_source_frame_end=200,
+        audio_source_transport_sequence_start=1, audio_source_transport_sequence_end=2,
+        audio_source_gap_count=0, audio_window_sequence=1,
+    )
+    assert event.audio_source_frame_end == 200

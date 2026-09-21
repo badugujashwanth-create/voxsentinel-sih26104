@@ -28,6 +28,7 @@ from app.services.async_session import AsyncCallSession, AudioSessionRegistry, S
 from app.services.ml_risk_policy import MLRiskPolicy
 from app.services.spoof_aggregation import TemporalSpoofAggregator
 from app.services.ml_service_client import MLServiceClient
+from app.services.acceptance_telemetry import AcceptanceTelemetryRegistry
 
 #: Spacing between scenario events, mirroring ``EVENT_INTERVAL_MS`` in
 #: ``frontend/src/scenarios/scenarios.ts``. This fixes ``timestamp_ms`` in the
@@ -179,10 +180,11 @@ class MockRiskProvider(RiskProvider):
 class MLRiskProvider(RiskProvider):
     """Consumes shared canonical windows and emits real spoof-derived events."""
 
-    def __init__(self, registry: AudioSessionRegistry, client: MLServiceClient) -> None:
+    def __init__(self, registry: AudioSessionRegistry, client: MLServiceClient, telemetry_registry: AcceptanceTelemetryRegistry | None = None) -> None:
         """Creates a provider over one shared runtime-session registry."""
         self.registry = registry
         self.client = client
+        self.telemetry_registry = telemetry_registry
 
     async def prepare_session(self, call_id: str) -> AsyncCallSession:
         """Checks model readiness before registering exactly one call session."""
@@ -207,6 +209,9 @@ class MLRiskProvider(RiskProvider):
             session.risk_policy = MLRiskPolicy()
         aggregator = session.spoof_aggregator
         policy = session.risk_policy
+        telemetry = self.telemetry_registry.get(session.call_id) if self.telemetry_registry is not None else None
+        if telemetry is not None:
+            telemetry.mark_stream_started()
         while not cancellation.is_set():
             try:
                 window = await session.next_window()
@@ -219,6 +224,19 @@ class MLRiskProvider(RiskProvider):
             aggregate = aggregator.add(evidence)
             decision = policy.evaluate(aggregate.threshold_state)
             session.event_sequence += 1
+            correlation = {}
+            if window.metadata is not None:
+                correlation = {
+                    "audio_source_frame_start": window.metadata.audio_source_frame_start,
+                    "audio_source_frame_end": window.metadata.audio_source_frame_end,
+                    "audio_source_transport_sequence_start": window.metadata.audio_source_transport_sequence_start,
+                    "audio_source_transport_sequence_end": window.metadata.audio_source_transport_sequence_end,
+                    "audio_source_gap_count": window.metadata.audio_source_gap_count,
+                    "audio_window_sequence": window.metadata.audio_window_sequence,
+                }
+            if telemetry is not None:
+                telemetry.record_inference(audio_window_sequence=window.metadata.audio_window_sequence if window.metadata is not None else None, raw_spoof_score=evidence.raw_spoof_score, aggregate_score=aggregate.aggregate_score, policy_state=decision.state, overall_risk_score=decision.score, risk_level=decision.level.value, recommended_action=decision.action.value, ml_inference_latency_ms=evidence.inference_ms, steady_state_latency_ms=None)
+
             yield LiveRiskEvent(
                 call_id=session.call_id,
                 sequence=session.event_sequence,
@@ -237,6 +255,7 @@ class MLRiskProvider(RiskProvider):
                 provider_round_trip_ms=(time.perf_counter() - inference_started) * 1000,
                 preprocessing_latency_ms=evidence.preprocessing_ms,
                 synthetic_score_semantics="uncalibrated",
+                aggregate_spoof_evidence=aggregate.aggregate_score,
                 evidence_availability={
                     "speaker_match_score": EvidenceAvailability.NOT_EVALUATED,
                     "speaker_mismatch_score": EvidenceAvailability.NOT_EVALUATED,
@@ -244,4 +263,5 @@ class MLRiskProvider(RiskProvider):
                     "replay_risk_score": EvidenceAvailability.NOT_EVALUATED,
                     "context_risk_score": EvidenceAvailability.NOT_EVALUATED,
                 },
+                **correlation,
             )

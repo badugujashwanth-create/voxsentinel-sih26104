@@ -27,6 +27,18 @@ Set `VITE_DEMO_MODE=false` and provide the backend origin with `VITE_API_BASE_UR
 
 In live mode, starting a selected scenario first creates a backend call with `POST /api/v1/calls`, starts it with `POST /api/v1/calls/{call_id}/start`, then opens the WebSocket with the returned `call_id`. Reset or normal stream completion stops the live call with `POST /api/v1/calls/{call_id}/stop` where the backend session is already live. Live setup failures are shown in the console; there is no automatic fallback to mock data.
 
+Live mode requests microphone permission only after the explicit `Start
+analysis` gesture and after the backend risk stream is ready. The browser opens
+the separate `/api/v1/calls/{call_id}/audio-stream`, reports the actual
+`AudioContext.sampleRate`, and sends bounded VXAF v1 float32 PCM frames from an
+AudioWorklet. The backend performs canonical mono 16 kHz conversion and
+reuses the same risk stream. `MIC STREAMING` is not shown until `audio_ready`.
+
+Microphone mode is ephemeral. Raw audio is not retained, downloaded, placed in
+browser storage, or written to backend logs/files. Browser backpressure drops
+new frames above 262144 buffered bytes and resumes below 65536; no unbounded
+retry queue is used.
+
 ## Checks
 
 ```bash
@@ -38,4 +50,8 @@ npm run test:e2e
 
 ## Current limitations
 
-Scenario values and verification outcomes are simulated. There is no real model inference, SMS, telephony, authentication, persistence, or backend session management in this task. Voice authenticity risk remains separate from secondary identity verification and protected-action authorization.
+Scenario values and verification outcomes remain simulated in DEMO mode. Real
+microphone mode requires the backend and verified ML service. The AASIST score
+is an uncalibrated model score, not a probability of fakery. Real microphone
+policy remains NORMAL 20/LOW/MONITOR or ELEVATED_AUTHENTICITY_REVIEW
+70/HIGH/REQUIRE_CALLBACK; speaker verification remains NOT_EVALUATED.

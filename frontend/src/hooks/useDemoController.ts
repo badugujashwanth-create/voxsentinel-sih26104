@@ -6,8 +6,12 @@ import { MockRiskStreamSource } from "../services/risk-stream/MockRiskStreamSour
 import type { RiskStreamSource } from "../services/risk-stream/RiskStreamSource";
 import { LiveCallRiskStreamSource } from "../services/risk-stream/LiveCallRiskStreamSource";
 import { useRiskStream } from "./useRiskStream";
+import { MicrophoneSession, type MicrophoneState } from "../audio/microphone-session";
+
+export type DemoMode = "DEMO" | "LIVE";
 
 export interface DemoController {
+  mode: DemoMode;
   selectedScenario: ScenarioId | null;
   context: CallContext | null;
   presentationState: PresentationState;
@@ -19,7 +23,9 @@ export interface DemoController {
   identityVerification: VerificationState;
   protectedAction: ProtectedActionState;
   selectScenario(scenarioId: ScenarioId): void;
+  selectMode(mode: DemoMode): void;
   start(): Promise<void>;
+  stop(): Promise<void>;
   pause(): void;
   resume(): void;
   reset(): void;
@@ -28,14 +34,17 @@ export interface DemoController {
   failVerification(): void;
   callId: string | null;
   liveMode: boolean;
+  microphoneState: MicrophoneState;
 }
 
 /** Coordinates deterministic demo mode and the future WebSocket mode. */
 export function useDemoController(): DemoController {
-  const liveMode = import.meta.env.VITE_DEMO_MODE === "false";
+  const [mode, setMode] = useState<DemoMode>(import.meta.env.VITE_DEMO_MODE === "false" ? "LIVE" : "DEMO");
+  const liveMode = mode === "LIVE";
+  const [microphoneState, setMicrophoneState] = useState<MicrophoneState>("IDLE");
   const [selectedScenario, setSelectedScenario] = useState<ScenarioId | null>(null);
   const [verification, setVerification] = useState<VerificationState>(initialVerificationState);
-  const source = useMemo(() => createSource(selectedScenario, liveMode), [selectedScenario, liveMode]);
+  const source = useMemo(() => createSource(selectedScenario, liveMode, setMicrophoneState), [selectedScenario, liveMode]);
   const stream = useRiskStream(source);
   const context = selectedScenario ? SCENARIOS[selectedScenario] : null;
   const currentEvent = stream.events.at(-1) ?? context?.events[0] ?? null;
@@ -52,6 +61,12 @@ export function useDemoController(): DemoController {
     setSelectedScenario(scenarioId);
     setVerification(initialVerificationState);
   }, []);
+
+  /** Changes the source mode while the call is idle. */
+  const selectMode = useCallback((nextMode: DemoMode) => {
+    if (stream.status === "CONNECTING" || stream.status === "LIVE" || stream.status === "PAUSED") return;
+    setMode(nextMode);
+  }, [stream.status]);
 
   const reset = useCallback(() => {
     stream.reset();
@@ -71,6 +86,7 @@ export function useDemoController(): DemoController {
   }, []);
 
   return {
+    mode,
     selectedScenario,
     context,
     presentationState,
@@ -82,7 +98,9 @@ export function useDemoController(): DemoController {
     identityVerification: verification,
     protectedAction,
     selectScenario,
+    selectMode,
     start: stream.start,
+    stop: stream.stop,
     pause: stream.pause,
     resume: stream.resume,
     reset,
@@ -91,20 +109,25 @@ export function useDemoController(): DemoController {
     failVerification,
     callId,
     liveMode,
+    microphoneState,
   };
 }
 
 /** Creates the configured source for the selected scenario. */
-function createSource(scenarioId: ScenarioId | null, liveMode: boolean): RiskStreamSource | null {
+function createSource(scenarioId: ScenarioId | null, liveMode: boolean, onMicrophoneState: (state: MicrophoneState) => void): RiskStreamSource | null {
   if (!scenarioId) return null;
   if (!liveMode) return new MockRiskStreamSource(scenarioId);
   const scenario = SCENARIOS[scenarioId];
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+  const microphone = new MicrophoneSession({ baseUrl }, onMicrophoneState);
   return new LiveCallRiskStreamSource({
+    baseUrl,
     request: {
       claimed_identity: scenario.caller,
       scenario: scenario.id,
       transaction_value: 2500000,
       currency: "INR",
     },
+    microphone,
   });
 }
