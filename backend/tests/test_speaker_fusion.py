@@ -61,3 +61,56 @@ def test_mismatch_promotion_requires_two_consecutive_observations():
     assert first.state == "NORMAL"
     second = accumulator.add(0.1, SpeakerEvidence.evaluated(0.2, 0.55))
     assert second.state == "IDENTITY_REVIEW"
+
+
+def test_elevated_state_requires_two_lower_observations_to_demote():
+    """A single lower observation does not clear an elevated fused state."""
+    accumulator = TemporalFusionAccumulator()
+    elevated = SpeakerEvidence.evaluated(0.2, 0.55)
+    normal = SpeakerEvidence.evaluated(0.8, 0.55)
+    accumulator.add(0.1, elevated)
+    promoted = accumulator.add(0.1, elevated)
+    assert promoted.state == "IDENTITY_REVIEW"
+
+    first_lower = accumulator.add(0.1, normal)
+    assert first_lower.state == "IDENTITY_REVIEW"
+    second_lower = accumulator.add(0.1, normal)
+    assert second_lower.state == "NORMAL"
+
+
+def test_higher_observation_resets_pending_demotion():
+    """A higher observation resets a pending lower-state demotion streak."""
+    accumulator = TemporalFusionAccumulator()
+    mismatch = SpeakerEvidence.evaluated(0.2, 0.55)
+    consistent = SpeakerEvidence.evaluated(0.8, 0.55)
+    accumulator.add(0.1, mismatch)
+    accumulator.add(0.1, mismatch)
+    accumulator.add(0.1, consistent)
+    still_elevated = accumulator.add(0.1, mismatch)
+    assert still_elevated.state == "IDENTITY_REVIEW"
+
+
+def test_reset_clears_fusion_demotion_streak():
+    """Reset starts a new call without inheriting temporal fusion state."""
+    accumulator = TemporalFusionAccumulator()
+    mismatch = SpeakerEvidence.evaluated(0.2, 0.55)
+    consistent = SpeakerEvidence.evaluated(0.8, 0.55)
+    accumulator.add(0.1, mismatch)
+    accumulator.add(0.1, mismatch)
+    accumulator.add(0.1, consistent)
+    accumulator.reset()
+    first = accumulator.add(0.1, consistent)
+
+
+def test_high_risk_review_requires_two_lower_observations_to_clear():
+    """A high-risk fused state cannot jump to normal on one low observation."""
+    accumulator = TemporalFusionAccumulator()
+    high = SpeakerEvidence.evaluated(0.2, 0.55)
+    low = SpeakerEvidence.evaluated(0.8, 0.55)
+    accumulator.add(0.8, high)
+    promoted = accumulator.add(0.8, high)
+    assert promoted.state == "HIGH_RISK_REVIEW"
+    first_lower = accumulator.add(0.1, low)
+    assert first_lower.state == "HIGH_RISK_REVIEW"
+    second_lower = accumulator.add(0.1, low)
+    assert second_lower.state == "NORMAL"
