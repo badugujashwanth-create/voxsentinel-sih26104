@@ -77,6 +77,7 @@ def get_speaker_profile_registry() -> SpeakerProfileRegistry:
     """Returns the bounded process-local profile registry."""
     return SpeakerProfileRegistry()
 
+@lru_cache(maxsize=1)
 def get_acceptance_telemetry_registry() -> AcceptanceTelemetryRegistry:
     """Returns ephemeral acceptance snapshots for local verification."""
     return AcceptanceTelemetryRegistry()

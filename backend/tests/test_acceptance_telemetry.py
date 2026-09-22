@@ -89,3 +89,8 @@ def test_registry_prunes_completed_snapshots_to_a_bounded_history() -> None:
     assert registry.get("call-1") is None
     assert registry.get("call-2") is not None
     assert registry.get("call-3") is not None
+
+def test_acceptance_registry_dependency_is_process_scoped():
+    """The API telemetry dependency must be shared across start/read/stop calls."""
+    from app.api.calls import get_acceptance_telemetry_registry
+    assert get_acceptance_telemetry_registry() is get_acceptance_telemetry_registry()
