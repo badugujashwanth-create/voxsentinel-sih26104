@@ -39,6 +39,7 @@ class AsyncCallSession:
         self.call_id = call_id
         self.speaker_profile_id = speaker_profile_id
         self.queue: asyncio.Queue[AudioWindow | object] = asyncio.Queue(maxsize=max_pending_windows)
+        self.speaker_queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=max_pending_windows)
         self.cancellation = asyncio.Event()
         self.generation_token = token_urlsafe(18)
         self.dropped_window_count = 0
@@ -73,6 +74,20 @@ class AsyncCallSession:
         self._next_window_sequence += 1
         return self._next_window_sequence
 
+    def enqueue_speaker_window(self, samples: Any) -> None:
+        """Keeps the newest bounded speaker probe window."""
+        if self._closed or self.cancellation.is_set():
+            raise SessionClosedError(f"session {self.call_id} is closed")
+        if self.speaker_queue.full():
+            self.speaker_queue.get_nowait()
+        self.speaker_queue.put_nowait(samples)
+
+    def latest_speaker_window(self) -> Any | None:
+        """Returns the newest available speaker probe without blocking AASIST."""
+        latest = None
+        while not self.speaker_queue.empty():
+            latest = self.speaker_queue.get_nowait()
+        return latest
     async def next_window(self) -> AudioWindow:
         """Waits for the next window or raises when the session closes."""
         item = await self.queue.get()
@@ -175,7 +190,13 @@ class AudioSessionRegistry:
             raise ValueError("audio chunk sequence must increase")
         if session.window_scheduler is None:
             session.window_scheduler = AASISTWindowScheduler()
+        if session.speaker_profile_id and getattr(session, "speaker_probe_scheduler", None) is None:
+            from app.services.speaker_windowing import SpeakerProbeScheduler
+            session.speaker_probe_scheduler = SpeakerProbeScheduler()
         source_segment = getattr(canonical, "source_segment", None)
+        if session.speaker_profile_id:
+            for speaker_window in session.speaker_probe_scheduler.push(canonical.samples):
+                session.enqueue_speaker_window(speaker_window)
         windows = session.window_scheduler.push_with_metadata(canonical.samples, source_segment)
         for samples, metadata in windows:
             session.enqueue_window(AudioWindow(session.allocate_window_sequence(), samples, metadata))

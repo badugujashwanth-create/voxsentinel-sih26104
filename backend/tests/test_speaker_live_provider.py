@@ -30,6 +30,7 @@ def test_profile_selected_call_emits_speaker_and_fusion_evidence():
         profile = profiles.add("speaker-1", {"embedding": [1.0, 0.0], "model_id": "ecapa-test", "model_revision": "revision", "embedding_dimensions": 2}, "test fixture")
         provider = MLRiskProvider(registry, ClientDouble(), profile_registry=profiles)
         session = await provider.prepare_session("call-1", profile.profile_id)
+        session.enqueue_speaker_window(np.zeros(32_000, dtype=np.float32))
         session.enqueue_window(AudioWindow(1, np.zeros(64_600, dtype=np.float32)))
         event = await anext(provider.stream(session, asyncio.Event()))
         assert event.speaker_state == "CONSISTENT"
