@@ -29,7 +29,7 @@ from app.services.ml_risk_policy import MLRiskPolicy
 from app.services.spoof_aggregation import TemporalSpoofAggregator
 from app.services.ml_service_client import MLServiceClient
 from app.services.acceptance_telemetry import AcceptanceTelemetryRegistry
-from app.services.speaker_fusion import SpeakerEvidence, SpeakerEvidenceState, fuse_evidence
+from app.services.speaker_fusion import SpeakerEvidence, SpeakerEvidenceState, TemporalFusionAccumulator
 
 #: Spacing between scenario events, mirroring ``EVENT_INTERVAL_MS`` in
 #: ``frontend/src/scenarios/scenarios.ts``. This fixes ``timestamp_ms`` in the
@@ -213,6 +213,8 @@ class MLRiskProvider(RiskProvider):
         policy = session.risk_policy
         telemetry = self.telemetry_registry.get(session.call_id) if self.telemetry_registry is not None else None
         profile = self.profile_registry.get(session.speaker_profile_id) if self.profile_registry is not None and session.speaker_profile_id else None
+        if not hasattr(session, "fusion_accumulator"):
+            session.fusion_accumulator = TemporalFusionAccumulator()
         if telemetry is not None:
             telemetry.mark_stream_started()
         while not cancellation.is_set():
@@ -230,10 +232,10 @@ class MLRiskProvider(RiskProvider):
                     speaker = SpeakerEvidence.evaluated(float(speaker_result["cosine_similarity"]), profile.threshold)
                 except (MLServiceError, ValueError, TypeError, KeyError):
                     speaker = SpeakerEvidence("MODEL_UNAVAILABLE", None, profile.threshold, SpeakerEvidenceState.INDETERMINATE)
-            fused = fuse_evidence(spoof.raw_spoof_score, speaker)
             if cancellation.is_set() or not self.registry.is_current(session.call_id, session.generation_token):
                 return
             aggregate = aggregator.add(spoof)
+            fused = session.fusion_accumulator.add(aggregate.aggregate_score, speaker)
             # AASIST temporal persistence remains authoritative for spoof-only state.
             decision = policy.evaluate(aggregate.threshold_state)
             if profile is not None and speaker.state is not SpeakerEvidenceState.INDETERMINATE:

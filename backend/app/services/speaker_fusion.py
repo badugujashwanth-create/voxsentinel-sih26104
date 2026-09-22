@@ -1,14 +1,14 @@
-"""Deterministic fusion of independent spoof and speaker evidence."""
+﻿"""Deterministic fusion of independent spoof and speaker evidence."""
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from enum import StrEnum
 
 
 class SpeakerEvidenceState(StrEnum):
     """Semantic result of comparing a probe with the enrolled reference."""
-
     CONSISTENT = "CONSISTENT"
     INCONSISTENT = "INCONSISTENT"
     INDETERMINATE = "INDETERMINATE"
@@ -17,7 +17,6 @@ class SpeakerEvidenceState(StrEnum):
 @dataclass(frozen=True)
 class SpeakerEvidence:
     """One uncalibrated speaker similarity observation."""
-
     availability: str
     similarity: float | None
     threshold: float | None
@@ -41,7 +40,6 @@ class SpeakerEvidence:
 @dataclass(frozen=True)
 class FusionDecision:
     """Policy-neutral fused operational decision."""
-
     state: str
     score: int
     action: str
@@ -60,3 +58,24 @@ def fuse_evidence(spoof_score: float | None, speaker: SpeakerEvidence) -> Fusion
     if speaker.state is SpeakerEvidenceState.INCONSISTENT:
         return FusionDecision("IDENTITY_REVIEW", 50, "VERIFY_IDENTITY", ("Speaker identity mismatch requires verification",))
     return FusionDecision("NORMAL", 20, "MONITOR", ("Voice and speaker evidence remain within the enrolled baseline",))
+
+
+class TemporalFusionAccumulator:
+    """Requires two consecutive corroborating observations before promotion."""
+
+    def __init__(self, history_size: int = 5, persistence: int = 2) -> None:
+        """Creates a bounded fusion history."""
+        if history_size < persistence or persistence < 1:
+            raise ValueError("fusion history must contain the persistence window")
+        self._history: deque[tuple[float, SpeakerEvidence]] = deque(maxlen=history_size)
+        self._persistence = persistence
+
+    def add(self, spoof_score: float, speaker: SpeakerEvidence) -> FusionDecision:
+        """Adds one observation and applies deterministic persistence."""
+        self._history.append((spoof_score, speaker))
+        recent = list(self._history)[-self._persistence :]
+        spoof_persistent = len(recent) == self._persistence and all(score >= 0.5 for score, _ in recent)
+        mismatch_persistent = len(recent) == self._persistence and all(item.state is SpeakerEvidenceState.INCONSISTENT for _, item in recent)
+        if not spoof_persistent and not mismatch_persistent:
+            return FusionDecision("NORMAL", 20, "MONITOR", ("Temporal evidence is still forming",))
+        return fuse_evidence(spoof_score, speaker)
