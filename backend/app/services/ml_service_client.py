@@ -99,7 +99,7 @@ class MLServiceClient:
             if response.status_code != 200:
                 raise MLServiceUnavailableError(f"speaker verification returned HTTP {response.status_code}")
             result = response.json()
-            if not isinstance(result, dict) or not isinstance(result.get("cosine_similarity"), (int, float)):
+            if not isinstance(result, dict) or not isinstance(result.get("model_id"), str) or not isinstance(result.get("model_revision"), str) or not isinstance(result.get("cosine_similarity"), (int, float)):
                 raise MLServiceMalformedResponseError("speaker verification response is malformed")
             return result
         except MLServiceError:

@@ -233,7 +233,7 @@ class MLRiskProvider(RiskProvider):
                         speaker = SpeakerEvidence("INSUFFICIENT_AUDIO", None, profile.threshold, SpeakerEvidenceState.INDETERMINATE)
                     else:
                         speaker_result = await self.client.verify_speaker(probe_samples, profile.embedding, profile.threshold)
-                        if speaker_result.get("model_id") != profile.model_id:
+                        if speaker_result.get("model_id") != profile.model_id or speaker_result.get("model_revision") != profile.model_revision:
                             raise MLServiceError("speaker model does not match enrolled profile")
                         speaker = SpeakerEvidence.evaluated(float(speaker_result["cosine_similarity"]), profile.threshold)
                 except (MLServiceError, ValueError, TypeError, KeyError):

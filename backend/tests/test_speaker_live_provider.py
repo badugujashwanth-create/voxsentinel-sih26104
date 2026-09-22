@@ -18,7 +18,7 @@ class ClientDouble:
 
     async def verify_speaker(self, samples, reference_embedding, threshold):
         """Returns deterministic uncalibrated speaker similarity."""
-        return {"model_id": "ecapa-test", "cosine_similarity": 0.8}
+        return {"model_id": "ecapa-test", "model_revision": "revision", "cosine_similarity": 0.8}
 
 
 def test_profile_selected_call_emits_speaker_and_fusion_evidence():
@@ -56,7 +56,7 @@ class MismatchedModelClient(ClientDouble):
 
     async def verify_speaker(self, samples, reference_embedding, threshold):
         """Returns evidence from a different model revision."""
-        return {"model_id": "other-model", "cosine_similarity": 0.9}
+        return {"model_id": "ecapa-test", "model_revision": "other-revision", "cosine_similarity": 0.9}
 
 
 def test_model_mismatch_is_not_evaluated_as_speaker_match():
@@ -78,7 +78,7 @@ class NegativeSimilarityClient(ClientDouble):
     """Client double that returns a valid negative cosine similarity."""
     async def verify_speaker(self, samples, reference_embedding, threshold):
         """Returns a strong mismatch similarity."""
-        return {"model_id": "ecapa-test", "cosine_similarity": -0.2}
+        return {"model_id": "ecapa-test", "model_revision": "revision", "cosine_similarity": -0.2}
 
 def test_negative_similarity_keeps_event_scores_in_contract():
     """Negative cosine mismatch evidence cannot create an invalid event score."""
