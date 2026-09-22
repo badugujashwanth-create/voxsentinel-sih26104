@@ -4,14 +4,16 @@ export type RiskLevel = (typeof RISK_LEVELS)[number];
 export const RECOMMENDED_ACTIONS = [
   "NONE",
   "MONITOR",
+  "VERIFY_IDENTITY",
   "REQUIRE_OTP",
   "REQUIRE_CALLBACK",
   "REQUIRE_VOICE_CHALLENGE",
+  "HOLD_SENSITIVE_ACTION",
   "REQUIRE_SUPERVISOR",
   "BLOCK_ACTION",
 ] as const;
 export type RecommendedAction = (typeof RECOMMENDED_ACTIONS)[number];
-export const EVIDENCE_AVAILABILITY = ["MEASURED", "NOT_EVALUATED"] as const;
+export const EVIDENCE_AVAILABILITY = ["MEASURED", "EVALUATED", "INSUFFICIENT_AUDIO", "NO_REFERENCE", "MODEL_UNAVAILABLE", "NOT_EVALUATED"] as const;
 export type EvidenceAvailability = (typeof EVIDENCE_AVAILABILITY)[number];
 
 export interface LiveRiskEvent {
@@ -40,6 +42,19 @@ export interface LiveRiskEvent {
   audio_source_gap_count?: number;
   audio_window_sequence?: number;
   aggregate_spoof_evidence?: number;
+  speaker_score_semantics?: "uncalibrated_similarity";
+  speaker_similarity?: number;
+  speaker_threshold?: number;
+  speaker_state?: "CONSISTENT" | "INCONSISTENT" | "INDETERMINATE";
+  speaker_model_id?: string;
+  expected_speaker_id?: string;
+  speaker_profile_id?: string;
+  speaker_window_sequence?: number;
+  speaker_canonical_start_sample?: number;
+  speaker_canonical_end_sample?: number;
+  speaker_source_frame_start?: number;
+  speaker_source_frame_end?: number;
+  fusion_state?: string;
 }
 
 const MIN_RISK_SCORE = 0;
@@ -93,12 +108,17 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
       throw new Error(`Risk event ${field} is invalid`);
     }
   }
+  for (const field of ["speaker_window_sequence", "speaker_canonical_start_sample", "speaker_canonical_end_sample", "speaker_source_frame_start", "speaker_source_frame_end"] as const) {
+    if (event[field] !== undefined && !isPositiveOrZeroInteger(event[field], field === "speaker_window_sequence")) throw new Error(`Risk event ${field} is invalid`);
+  }
   for (const field of ["audio_source_frame_start", "audio_source_frame_end", "audio_source_transport_sequence_start", "audio_source_transport_sequence_end", "audio_source_gap_count", "audio_window_sequence"] as const) {
     if (event[field] !== undefined && !isPositiveOrZeroInteger(event[field], field.startsWith("audio_source_transport_sequence") || field === "audio_window_sequence")) {
       throw new Error(`Risk event ${field} is invalid`);
     }
   }
 
+  if (event.speaker_similarity !== undefined && (typeof event.speaker_similarity !== "number" || !Number.isFinite(event.speaker_similarity) || event.speaker_similarity < -1 || event.speaker_similarity > 1)) throw new Error("Risk event speaker_similarity is invalid");
+  if (event.speaker_threshold !== undefined && !isProbability(event.speaker_threshold)) throw new Error("Risk event speaker_threshold is invalid");
   if (event.aggregate_spoof_evidence !== undefined && !isProbability(event.aggregate_spoof_evidence)) throw new Error("Risk event aggregate_spoof_evidence is invalid");
   return {
     call_id: event.call_id,
@@ -126,6 +146,19 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     audio_source_gap_count: event.audio_source_gap_count,
     audio_window_sequence: event.audio_window_sequence,
     aggregate_spoof_evidence: event.aggregate_spoof_evidence,
+    speaker_score_semantics: event.speaker_score_semantics,
+    speaker_similarity: event.speaker_similarity,
+    speaker_threshold: event.speaker_threshold,
+    speaker_state: event.speaker_state,
+    speaker_model_id: event.speaker_model_id,
+    expected_speaker_id: event.expected_speaker_id,
+    speaker_profile_id: event.speaker_profile_id,
+    speaker_window_sequence: event.speaker_window_sequence,
+    speaker_canonical_start_sample: event.speaker_canonical_start_sample,
+    speaker_canonical_end_sample: event.speaker_canonical_end_sample,
+    speaker_source_frame_start: event.speaker_source_frame_start,
+    speaker_source_frame_end: event.speaker_source_frame_end,
+    fusion_state: event.fusion_state,
   };
 }
 

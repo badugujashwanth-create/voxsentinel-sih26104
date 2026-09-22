@@ -12,6 +12,9 @@ export interface AcceptanceInference {
   ml_inference_latency_ms?: number;
   steady_state_latency_ms: number | null;
   score_semantics?: "uncalibrated";
+  speaker_similarity?: number | null;
+  speaker_state?: string;
+  fusion_state?: string;
 }
 
 export interface AcceptanceSnapshot {

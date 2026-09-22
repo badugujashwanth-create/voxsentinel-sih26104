@@ -81,3 +81,30 @@ describe("SecurityConsole live controls", () => {
     expect(screen.queryByRole('button', { name: 'Resume' })).not.toBeInTheDocument();
   });
 });
+
+describe("SecurityConsole speaker evidence", () => {
+  it("does not describe live signal annotations as confidence", () => {
+    render(<SecurityConsole controller={buildController(vi.fn().mockResolvedValue(undefined))} verificationOpen={false} onOpenVerification={vi.fn()} onCloseVerification={vi.fn()} />);
+
+    expect(screen.queryByText("CONFIDENCE BAND ACTIVE", { exact: true })).not.toBeInTheDocument();
+  });
+  it("displays the actual negative cosine similarity", () => {
+    const controller = {
+      ...buildController(vi.fn().mockResolvedValue(undefined)),
+      presentationState: "ACTIVE" as DemoController["presentationState"],
+      currentEvent: {
+        ...liveEvent,
+        speaker_match_score: 0,
+        speaker_similarity: -0.1132,
+        speaker_score_semantics: "uncalibrated_similarity" as const,
+        speaker_state: "INCONSISTENT" as const,
+        evidence_availability: {
+          ...liveEvent.evidence_availability,
+          speaker_match_score: "EVALUATED" as const,
+        },
+      },
+    };
+    render(<SecurityConsole controller={controller} verificationOpen={false} onOpenVerification={vi.fn()} onCloseVerification={vi.fn()} />);
+    expect(screen.getByText("-0.11")).toBeInTheDocument();
+  });
+});

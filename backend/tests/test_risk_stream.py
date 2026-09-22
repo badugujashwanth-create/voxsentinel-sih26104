@@ -37,7 +37,7 @@ def test_stream_payloads_satisfy_the_frontend_contract(client: TestClient, live_
     for payload in drain(client, live_call_id):
         event = LiveRiskEvent.model_validate(payload)
         assert event.call_id == live_call_id
-        optional_fields = {"evidence_availability", "synthetic_score_semantics", "inference_latency_ms", "provider_round_trip_ms", "preprocessing_latency_ms", "audio_source_frame_start", "audio_source_frame_end", "audio_source_transport_sequence_start", "audio_source_transport_sequence_end", "audio_source_gap_count", "audio_window_sequence", "aggregate_spoof_evidence"}
+        optional_fields = {"evidence_availability", "synthetic_score_semantics", "inference_latency_ms", "provider_round_trip_ms", "preprocessing_latency_ms", "audio_source_frame_start", "audio_source_frame_end", "audio_source_transport_sequence_start", "audio_source_transport_sequence_end", "audio_source_gap_count", "audio_window_sequence", "aggregate_spoof_evidence", "speaker_score_semantics", "speaker_similarity", "speaker_threshold", "speaker_state", "speaker_model_id", "expected_speaker_id", "speaker_profile_id", "fusion_state", "speaker_window_sequence", "speaker_canonical_start_sample", "speaker_canonical_end_sample", "speaker_source_frame_start", "speaker_source_frame_end"}
         assert set(payload) == set(LiveRiskEvent.model_fields) - optional_fields
 
 

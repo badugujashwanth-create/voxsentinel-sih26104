@@ -7,6 +7,7 @@ export interface CreateCallRequest {
   scenario: ScenarioId;
   transaction_value?: number;
   currency?: string;
+  speaker_profile_id?: string;
 }
 
 export interface CreateCallResponse {
@@ -26,6 +27,7 @@ export interface CallSessionResponse {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+  speaker_profile_id?: string | null;
 }
 
 export class CallSessionError extends Error {

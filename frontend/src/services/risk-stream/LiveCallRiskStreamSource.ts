@@ -12,6 +12,7 @@ export interface LiveCallRequest {
   scenario: ScenarioId;
   transaction_value?: number;
   currency?: string;
+  speaker_profile_id?: string;
 }
 
 type MicrophoneLike = Pick<MicrophoneSession, "start" | "stop" | "reset" | "dispose"> & { getAcceptanceSnapshot?: MicrophoneSession["getAcceptanceSnapshot"] };
@@ -141,7 +142,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private recordAcceptanceEvent(event: LiveRiskEvent): void {
     const mic = this.microphone?.getAcceptanceSnapshot?.();
     const steadyLatency = event.audio_source_frame_end !== undefined && mic?.timing_anchor ? steadyStateLatencyMs(performance.now(), captureEndPerformanceMs(BigInt(event.audio_source_frame_end), mic.timing_anchor)) : null;
-    this.appendAcceptanceInference({ audio_window_sequence: event.audio_window_sequence, raw_spoof_score: event.synthetic_probability, aggregate_score: event.aggregate_spoof_evidence ?? event.synthetic_probability, policy_state: event.overall_risk_score === 70 ? "ELEVATED_AUTHENTICITY_REVIEW" : "NORMAL", overall_risk_score: event.overall_risk_score, risk_level: event.risk_level, recommended_action: event.recommended_action, ml_inference_latency_ms: event.inference_latency_ms, steady_state_latency_ms: steadyLatency, score_semantics: "uncalibrated" });
+    this.appendAcceptanceInference({ audio_window_sequence: event.audio_window_sequence, raw_spoof_score: event.synthetic_probability, aggregate_score: event.aggregate_spoof_evidence ?? event.synthetic_probability, policy_state: event.overall_risk_score === 70 ? "ELEVATED_AUTHENTICITY_REVIEW" : "NORMAL", overall_risk_score: event.overall_risk_score, risk_level: event.risk_level, recommended_action: event.recommended_action, ml_inference_latency_ms: event.inference_latency_ms, steady_state_latency_ms: steadyLatency, score_semantics: "uncalibrated", speaker_similarity: event.speaker_similarity ?? null, speaker_state: event.speaker_state, fusion_state: event.fusion_state });
     this.publishAcceptanceState(event.call_id);
   }
 

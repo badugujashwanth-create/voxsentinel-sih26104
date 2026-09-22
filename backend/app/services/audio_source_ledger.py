@@ -26,6 +26,8 @@ class AudioWindowMetadata:
     audio_source_transport_sequence_end: int
     audio_source_gap_count: int
     audio_window_sequence: int
+    canonical_start_sample: int = 0
+    canonical_end_sample: int = 0
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,8 @@ class SourceSegmentLedger:
             audio_source_transport_sequence_end=max(segment.transport_sequence_end for segment in contributing),
             audio_source_gap_count=sum(segment.source_gap_count for segment in contributing),
             audio_window_sequence=window_sequence,
+            canonical_start_sample=canonical_start,
+            canonical_end_sample=canonical_end,
         )
 
     def prune_before(self, canonical_position: int) -> None:

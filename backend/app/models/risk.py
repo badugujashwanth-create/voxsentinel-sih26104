@@ -1,23 +1,14 @@
-"""Live risk event contract shared with the VoxSentinel console frontend.
-
-Field names, value ranges, and the severity banding mirror
-``frontend/src/domain/risk.ts``. That module rejects any event whose
-``risk_level`` disagrees with ``overall_risk_score``, so ``risk_level_for`` must
-stay identical to its ``getRiskLevel``. Changing either side alone breaks the
-console at runtime.
-"""
+"""Live risk event contract shared with the VoxSentinel console frontend."""
 
 from __future__ import annotations
 
 from enum import StrEnum
 from typing import Annotated, Literal
-
 from pydantic import BaseModel, Field, model_validator
 
 
 class RiskLevel(StrEnum):
     """Severity bands the console renders."""
-
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
@@ -26,32 +17,25 @@ class RiskLevel(StrEnum):
 
 class RecommendedAction(StrEnum):
     """Operator-facing actions the console can surface."""
-
     NONE = "NONE"
     MONITOR = "MONITOR"
+    VERIFY_IDENTITY = "VERIFY_IDENTITY"
     REQUIRE_OTP = "REQUIRE_OTP"
     REQUIRE_CALLBACK = "REQUIRE_CALLBACK"
     REQUIRE_VOICE_CHALLENGE = "REQUIRE_VOICE_CHALLENGE"
+    HOLD_SENSITIVE_ACTION = "HOLD_SENSITIVE_ACTION"
     REQUIRE_SUPERVISOR = "REQUIRE_SUPERVISOR"
     BLOCK_ACTION = "BLOCK_ACTION"
 
 
 class EvidenceAvailability(StrEnum):
     """Whether a detector dimension was evaluated for an event."""
-
     MEASURED = "MEASURED"
+    EVALUATED = "EVALUATED"
+    INSUFFICIENT_AUDIO = "INSUFFICIENT_AUDIO"
+    NO_REFERENCE = "NO_REFERENCE"
+    MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
     NOT_EVALUATED = "NOT_EVALUATED"
-
-
-def risk_level_for(score: int) -> RiskLevel:
-    """Maps an overall 0-100 score to its severity band."""
-    if score < 30:
-        return RiskLevel.LOW
-    if score < 60:
-        return RiskLevel.MEDIUM
-    if score < 80:
-        return RiskLevel.HIGH
-    return RiskLevel.CRITICAL
 
 
 Probability = Annotated[float, Field(ge=0.0, le=1.0)]
@@ -59,7 +43,6 @@ Probability = Annotated[float, Field(ge=0.0, le=1.0)]
 
 class LiveRiskEvent(BaseModel):
     """One risk observation emitted on the live stream."""
-
     call_id: str = Field(min_length=1)
     sequence: int = Field(ge=1)
     timestamp_ms: int = Field(ge=0)
@@ -77,6 +60,19 @@ class LiveRiskEvent(BaseModel):
     provider_round_trip_ms: float | None = Field(default=None, ge=0.0)
     preprocessing_latency_ms: float | None = Field(default=None, ge=0.0)
     synthetic_score_semantics: Literal["uncalibrated"] | None = None
+    speaker_score_semantics: Literal["uncalibrated_similarity"] | None = None
+    speaker_similarity: float | None = Field(default=None, ge=-1.0, le=1.0)
+    speaker_threshold: float | None = Field(default=None, ge=-1.0, le=1.0)
+    speaker_state: Literal["CONSISTENT", "INCONSISTENT", "INDETERMINATE"] | None = None
+    speaker_model_id: str | None = None
+    expected_speaker_id: str | None = None
+    speaker_profile_id: str | None = None
+    speaker_window_sequence: int | None = Field(default=None, ge=1)
+    speaker_canonical_start_sample: int | None = Field(default=None, ge=0)
+    speaker_canonical_end_sample: int | None = Field(default=None, ge=0)
+    speaker_source_frame_start: int | None = Field(default=None, ge=0)
+    speaker_source_frame_end: int | None = Field(default=None, ge=0)
+    fusion_state: str | None = None
     evidence_availability: dict[str, EvidenceAvailability] | None = None
     audio_source_frame_start: int | None = Field(default=None, ge=0)
     audio_source_frame_end: int | None = Field(default=None, ge=0)
@@ -87,11 +83,22 @@ class LiveRiskEvent(BaseModel):
     aggregate_spoof_evidence: Probability | None = None
 
     @model_validator(mode="after")
-    def _check_frontend_invariants(self) -> LiveRiskEvent:
-        """Rejects events the console's validator would throw away."""
+    def _check_frontend_invariants(self) -> "LiveRiskEvent":
+        """Rejects events whose score and severity disagree."""
         expected = risk_level_for(self.overall_risk_score)
         if self.risk_level is not expected:
             raise ValueError(f"risk_level {self.risk_level} does not match score {self.overall_risk_score} (expected {expected})")
         if any(not reason.strip() for reason in self.reasons):
             raise ValueError("reasons must not contain empty strings")
         return self
+
+
+def risk_level_for(score: int) -> RiskLevel:
+    """Maps an overall score to its severity band."""
+    if score < 30:
+        return RiskLevel.LOW
+    if score < 60:
+        return RiskLevel.MEDIUM
+    if score < 80:
+        return RiskLevel.HIGH
+    return RiskLevel.CRITICAL
