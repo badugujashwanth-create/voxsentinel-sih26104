@@ -84,10 +84,9 @@ class AsyncCallSession:
 
     def latest_speaker_window(self) -> Any | None:
         """Returns the newest available speaker probe without blocking AASIST."""
-        latest = None
-        while not self.speaker_queue.empty():
-            latest = self.speaker_queue.get_nowait()
-        return latest
+        if self.speaker_queue.empty():
+            return None
+        return self.speaker_queue.get_nowait()
     async def next_window(self) -> AudioWindow:
         """Waits for the next window or raises when the session closes."""
         item = await self.queue.get()
