@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import base64
 import binascii
 import numpy as np
@@ -109,10 +110,14 @@ def create_call(request: CreateCallRequest, service: CallService = Depends(get_c
 async def read_acceptance_telemetry(call_id: str, request: Request) -> object:
     """Returns opt-in local acceptance metadata without audio payloads."""
     import os
-    if request.client is not None and request.client.host not in {"127.0.0.1", "::1"}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceptance telemetry is local-only")
     if os.getenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY", "") != "1":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Acceptance telemetry is disabled")
+    expected_token = os.getenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY_TOKEN", "").strip()
+    provided_token = request.headers.get("x-voxsentinel-acceptance-token", "")
+    if not expected_token:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Acceptance telemetry token is not configured")
+    if not hmac.compare_digest(provided_token, expected_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid acceptance telemetry token")
     telemetry = get_acceptance_telemetry_registry().get(call_id)
     if telemetry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No acceptance telemetry for call")

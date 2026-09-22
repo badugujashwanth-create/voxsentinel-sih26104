@@ -99,3 +99,10 @@ def test_speaker_profile_payload_is_bounded():
     """Enrollment payloads larger than the bounded audio encoding are rejected."""
     with pytest.raises(ValidationError):
         CreateSpeakerProfileRequest(expected_speaker_id="speaker", samples_base64="A" * 2_560_001, provenance="test")
+
+
+def test_acceptance_telemetry_requires_explicit_token(client, monkeypatch):
+    """Opt-in telemetry is unavailable without its local acceptance token."""
+    monkeypatch.setenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY", "1")
+    response = client.get("/api/v1/calls/unknown/acceptance-telemetry")
+    assert response.status_code == 404
