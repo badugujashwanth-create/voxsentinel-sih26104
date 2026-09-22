@@ -1,4 +1,4 @@
-﻿from app.services.speaker_fusion import SpeakerEvidence, SpeakerEvidenceState, TemporalFusionAccumulator, fuse_evidence
+from app.services.speaker_fusion import SpeakerEvidence, SpeakerEvidenceState, TemporalFusionAccumulator, fuse_evidence
 
 
 def test_low_spoof_and_consistent_speaker_is_monitor():
@@ -36,6 +36,11 @@ def test_speaker_similarity_is_uncalibrated():
     """Speaker similarity carries no probability semantics."""
     evidence = SpeakerEvidence.evaluated(0.91, 0.55)
     assert evidence.score_semantics == "uncalibrated"
+
+def test_negative_speaker_similarity_is_a_valid_mismatch():
+    """Negative cosine similarity remains evaluated mismatch evidence."""
+    evidence = SpeakerEvidence.evaluated(-0.2, 0.55)
+    assert evidence.state is SpeakerEvidenceState.INCONSISTENT
 
 
 def test_one_anomalous_observation_does_not_promote_temporal_fusion():

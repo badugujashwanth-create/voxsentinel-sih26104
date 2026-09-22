@@ -106,9 +106,11 @@ def create_call(request: CreateCallRequest, service: CallService = Depends(get_c
 
 
 @router.get("/{call_id}/acceptance-telemetry")
-async def read_acceptance_telemetry(call_id: str) -> object:
+async def read_acceptance_telemetry(call_id: str, request: Request) -> object:
     """Returns opt-in local acceptance metadata without audio payloads."""
     import os
+    if request.client is not None and request.client.host not in {"127.0.0.1", "::1"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceptance telemetry is local-only")
     if os.getenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY", "") != "1":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Acceptance telemetry is disabled")
     telemetry = get_acceptance_telemetry_registry().get(call_id)
@@ -146,12 +148,25 @@ async def start_call(call_id: str, service: CallService = Depends(get_call_servi
     if isinstance(provider, MLRiskProvider):
         try:
             call = service.get(call_id)
+            if call.speaker_profile_id is not None:
+                try:
+                    get_speaker_profile_registry().require(call.speaker_profile_id)
+                except KeyError as error:
+                    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
             runtime_session = await provider.prepare_session(call_id, call.speaker_profile_id)
             if os.getenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY", "") == "1":
                 get_acceptance_telemetry_registry().create(call_id)
         except MLServiceError as error:
+            if runtime_session is not None:
+                await provider.close_session(call_id, runtime_session.generation_token)
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start unavailable: {error}") from error
+        except HTTPException:
+            if runtime_session is not None:
+                await provider.close_session(call_id, runtime_session.generation_token)
+            raise
         except Exception as error:
+            if runtime_session is not None:
+                await provider.close_session(call_id, runtime_session.generation_token)
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"ML start failed: {error}") from error
     try:
         return service.start(call_id)

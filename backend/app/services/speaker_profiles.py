@@ -1,4 +1,4 @@
-﻿"""Ephemeral speaker profile references for local SIH operation."""
+"""Ephemeral speaker profile references for local SIH operation."""
 
 from __future__ import annotations
 
@@ -44,6 +44,13 @@ class SpeakerProfileRegistry:
     def get(self, profile_id: str) -> SpeakerProfile | None:
         """Returns one profile without exposing source audio."""
         return self._profiles.get(profile_id)
+
+    def require(self, profile_id: str) -> SpeakerProfile:
+        """Returns a profile or rejects an unknown profile identifier."""
+        profile = self.get(profile_id)
+        if profile is None:
+            raise KeyError(f"unknown speaker profile: {profile_id}")
+        return profile
 
     def clear(self) -> None:
         """Disposes all in-memory profile references."""

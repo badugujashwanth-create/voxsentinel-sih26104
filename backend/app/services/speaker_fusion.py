@@ -1,4 +1,4 @@
-﻿"""Deterministic fusion of independent spoof and speaker evidence."""
+"""Deterministic fusion of independent spoof and speaker evidence."""
 
 from __future__ import annotations
 
@@ -26,8 +26,8 @@ class SpeakerEvidence:
     @classmethod
     def evaluated(cls, similarity: float, threshold: float) -> "SpeakerEvidence":
         """Creates a finite thresholded speaker observation."""
-        if not 0.0 <= similarity <= 1.0 or not 0.0 <= threshold <= 1.0:
-            raise ValueError("speaker similarity and threshold must be between 0 and 1")
+        if not -1.0 <= similarity <= 1.0 or not 0.0 <= threshold <= 1.0:
+            raise ValueError("speaker similarity must be between -1 and 1; threshold must be between 0 and 1")
         state = SpeakerEvidenceState.CONSISTENT if similarity >= threshold else SpeakerEvidenceState.INCONSISTENT
         return cls("EVALUATED", similarity, threshold, state)
 

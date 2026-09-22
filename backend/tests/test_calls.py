@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
+from app.models.call import CreateSpeakerProfileRequest
 
 
 GENUINE_CALL = {"claimed_identity": "Arjun Mehta", "scenario": "GENUINE"}
@@ -90,3 +93,9 @@ def test_blank_claimed_identity_is_rejected(client: TestClient) -> None:
     """Claimed identity is required at the trust boundary."""
     response = client.post("/api/v1/calls", json={"claimed_identity": "", "scenario": "GENUINE"})
     assert response.status_code == 422
+
+
+def test_speaker_profile_payload_is_bounded():
+    """Enrollment payloads larger than the bounded audio encoding are rejected."""
+    with pytest.raises(ValidationError):
+        CreateSpeakerProfileRequest(expected_speaker_id="speaker", samples_base64="A" * 2_560_001, provenance="test")

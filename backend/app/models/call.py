@@ -60,5 +60,5 @@ class CallSession(BaseModel):
 class CreateSpeakerProfileRequest(BaseModel):
     """Canonical enrollment audio sent ephemerally to the ML service."""
     expected_speaker_id: str = Field(min_length=1)
-    samples_base64: str = Field(min_length=1)
+    samples_base64: str = Field(min_length=1, max_length=2_560_000)
     provenance: str = Field(min_length=1)
