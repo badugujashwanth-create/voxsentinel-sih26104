@@ -141,6 +141,11 @@ class ECAPASpeakerVerifier(SpeakerVerifier):
         return f"ECAPA-TDNN/spkrec-ecapa-voxceleb@{ECAPA_REVISION[:8]}"
 
     @property
+    def model_revision(self) -> str:
+        """Returns the full pinned Hugging Face revision."""
+        return ECAPA_REVISION
+
+    @property
     def expected_sample_rate(self) -> int:
         """ECAPA operates on 16 kHz audio."""
         return ECAPA_SAMPLE_RATE

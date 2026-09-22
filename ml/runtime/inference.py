@@ -80,7 +80,7 @@ class AASISTInferenceRuntime:
         samples = self._decode_audio(request.samples_base64, 32_000)
         async with self._speaker_forward_gate:
             embedding = await asyncio.to_thread(verifier.embed, samples, AASIST_SAMPLE_RATE)
-        return SpeakerEmbedResponse(model_id=embedding.model_id, model_revision=embedding.model_id.rsplit("@", 1)[-1], embedding=embedding.vector.astype(np.float32).tolist(), embedding_dimensions=embedding.dimensions, audio_duration_ms=embedding.total_duration_seconds * 1000, inference_ms=embedding.inference_seconds * 1000, preprocessing_ms=embedding.preprocessing_seconds * 1000)
+        return SpeakerEmbedResponse(model_id=embedding.model_id, model_revision=getattr(verifier, "model_revision", embedding.model_id.rsplit("@", 1)[-1]), embedding=embedding.vector.astype(np.float32).tolist(), embedding_dimensions=embedding.dimensions, audio_duration_ms=embedding.total_duration_seconds * 1000, inference_ms=embedding.inference_seconds * 1000, preprocessing_ms=embedding.preprocessing_seconds * 1000)
 
     async def verify_speaker(self, request: SpeakerVerifyRequest) -> SpeakerVerifyResponse:
         """Scores one canonical probe against a stored normalized reference."""
@@ -94,4 +94,4 @@ class AASISTInferenceRuntime:
         reference = SpeakerEmbedding(vector=reference_vector, model_id=verifier.model_id, source_count=1, total_duration_seconds=1.0, sample_rate=AASIST_SAMPLE_RATE)
         async with self._speaker_forward_gate:
             result = await asyncio.to_thread(verifier.verify, reference, samples, AASIST_SAMPLE_RATE, request.threshold)
-        return SpeakerVerifyResponse(model_id=result.model_id, model_revision=result.model_id.rsplit("@", 1)[-1], cosine_similarity=result.similarity_score, threshold=result.threshold, is_match=result.is_match, embedding_dimensions=reference_vector.size, audio_duration_ms=result.probe_duration_seconds * 1000, inference_ms=result.inference_seconds * 1000, preprocessing_ms=result.preprocessing_seconds * 1000)
+        return SpeakerVerifyResponse(model_id=result.model_id, model_revision=getattr(verifier, "model_revision", result.model_id.rsplit("@", 1)[-1]), cosine_similarity=result.similarity_score, threshold=result.threshold, is_match=result.is_match, embedding_dimensions=reference_vector.size, audio_duration_ms=result.probe_duration_seconds * 1000, inference_ms=result.inference_seconds * 1000, preprocessing_ms=result.preprocessing_seconds * 1000)
