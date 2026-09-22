@@ -64,4 +64,18 @@ describe("risk domain", () => {
     };
     expect(validateLiveRiskEvent(event).audio_source_frame_end).toBe(200);
   });
+
+  it("accepts explicit uncalibrated speaker similarity and fusion action", () => {
+    const event = {
+      call_id: "call-1", sequence: 1, timestamp_ms: 100, synthetic_probability: 0.1,
+      speaker_match_score: 0.82, speaker_mismatch_score: 0.18, prosody_anomaly_score: 0,
+      replay_risk_score: 0, context_risk_score: 0, overall_risk_score: 50,
+      risk_level: "MEDIUM", reasons: ["Speaker identity mismatch requires verification"], recommended_action: "VERIFY_IDENTITY",
+      speaker_score_semantics: "uncalibrated_similarity", speaker_similarity: 0.82, speaker_threshold: 0.55,
+      speaker_state: "INCONSISTENT", fusion_state: "IDENTITY_REVIEW",
+      evidence_availability: { speaker_match_score: "EVALUATED" },
+    } as const;
+    expect(validateLiveRiskEvent(event).speaker_score_semantics).toBe("uncalibrated_similarity");
+    expect(validateLiveRiskEvent(event).recommended_action).toBe("VERIFY_IDENTITY");
+  });
 });

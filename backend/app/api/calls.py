@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import numpy as np
 import json
 import os
@@ -34,6 +35,7 @@ WS_AUDIO_INVALID = 4400
 WS_AUDIO_DUPLICATE = 4410
 WS_AUDIO_NOT_READY = 4411
 MAX_AUDIO_CONTAINER_BYTES = 25 * 1024 * 1024
+MAX_PROFILE_SAMPLES = 480_000
 
 router = APIRouter(prefix="/api/v1/calls", tags=["calls"])
 
@@ -121,12 +123,12 @@ async def create_speaker_profile(request: CreateSpeakerProfileRequest) -> object
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Speaker profiles require ML mode")
     try:
         samples = np.frombuffer(base64.b64decode(request.samples_base64, validate=True), dtype="<f4").copy()
-        if samples.ndim != 1 or samples.size < 48_000 or not np.isfinite(samples).all():
+        if samples.ndim != 1 or samples.size < 48_000 or samples.size > MAX_PROFILE_SAMPLES or not np.isfinite(samples).all():
             raise ValueError("profile audio must be finite mono float32 with at least 3 seconds")
         result = await provider.client.embed_speaker(samples.astype(np.float32))
         profile = get_speaker_profile_registry().add(request.expected_speaker_id, result, request.provenance)
         return {"profile_id": profile.profile_id, "expected_speaker_id": profile.expected_speaker_id, "model_id": profile.model_id, "model_revision": profile.model_revision, "embedding_dimensions": profile.embedding_dimensions, "threshold": profile.threshold, "score_semantics": "uncalibrated_embedding"}
-    except (ValueError, MLServiceError) as error:
+    except (binascii.Error, ValueError, MLServiceError) as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
 
 @router.get("/{call_id}", response_model=CallSession)
