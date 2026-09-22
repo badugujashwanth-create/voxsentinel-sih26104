@@ -105,7 +105,7 @@ function ForensicWaveform({ risk, state }: { risk: number; state: string }) {
 }
 
 /** Renders signal annotations without implying real model inference. */
-function SignalCaption() { return <div className="signal-caption"><span><span className="status-dot status-dot--cyan" /> LIVE AUDIO ANALYSIS</span><span className="mono-label">CONFIDENCE BAND ACTIVE</span><span className="mono-label">F1â€”F4 REFERENCE</span></div>; }
+function SignalCaption() { return <div className="signal-caption"><span><span className="status-dot status-dot--cyan" /> LIVE AUDIO ANALYSIS</span><span className="mono-label">SIGNAL BAND ACTIVE</span><span className="mono-label">F1â€”F4 REFERENCE</span></div>; }
 
 /** Renders progressive warning and critical forensic conclusions. */
 function SignalAlert({ state, event, isCritical, error }: { state: string; event: DemoController["currentEvent"]; isCritical: boolean; error: Error | null }) {

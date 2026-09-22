@@ -83,6 +83,11 @@ describe("SecurityConsole live controls", () => {
 });
 
 describe("SecurityConsole speaker evidence", () => {
+  it("does not describe live signal annotations as confidence", () => {
+    render(<SecurityConsole controller={buildController(vi.fn().mockResolvedValue(undefined))} verificationOpen={false} onOpenVerification={vi.fn()} onCloseVerification={vi.fn()} />);
+
+    expect(screen.queryByText("CONFIDENCE BAND ACTIVE", { exact: true })).not.toBeInTheDocument();
+  });
   it("displays the actual negative cosine similarity", () => {
     const controller = {
       ...buildController(vi.fn().mockResolvedValue(undefined)),
