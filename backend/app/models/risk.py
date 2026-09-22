@@ -67,6 +67,11 @@ class LiveRiskEvent(BaseModel):
     speaker_model_id: str | None = None
     expected_speaker_id: str | None = None
     speaker_profile_id: str | None = None
+    speaker_window_sequence: int | None = Field(default=None, ge=1)
+    speaker_canonical_start_sample: int | None = Field(default=None, ge=0)
+    speaker_canonical_end_sample: int | None = Field(default=None, ge=0)
+    speaker_source_frame_start: int | None = Field(default=None, ge=0)
+    speaker_source_frame_end: int | None = Field(default=None, ge=0)
     fusion_state: str | None = None
     evidence_availability: dict[str, EvidenceAvailability] | None = None
     audio_source_frame_start: int | None = Field(default=None, ge=0)

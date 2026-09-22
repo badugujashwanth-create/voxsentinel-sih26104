@@ -1,4 +1,4 @@
-﻿# JASH-006: Final Intelligence Integration Design
+# JASH-006: Final Intelligence Integration Design
 
 ## Existing-state audit
 
@@ -52,6 +52,10 @@ Real states are NORMAL, IDENTITY_REVIEW, AUTHENTICITY_REVIEW, HIGH_RISK_REVIEW, 
 ## Temporal logic
 
 AASIST retains its last-five median and 0.5/0.45 persistence policy. Speaker uses threshold 0.55 and two-observation consistency persistence. Single observations cannot immediately change fused action. Stop, Reset, and new calls clear histories.
+
+## Correlation clarification
+
+Speaker probes carry immutable canonical start/end samples and, when safely available, source-frame ranges. For each AASIST window, fusion selects only the newest speaker probe whose canonical end is causal and no more than 32,000 canonical samples older than the AASIST window end. Older or out-of-order probe sequences are ignored; stale or absent probes are INDETERMINATE/NOT_EVALUATED and never speaker-consistent. Probe history is bounded to eight entries and is cleared on session close/reset.
 
 ## Failure/degraded behavior
 

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from dataclasses import dataclass
 from secrets import token_urlsafe
 from typing import Any
 
+import numpy as np
+
 from app.services.audio_source_ledger import AudioWindowMetadata
+from app.services.speaker_windowing import SpeakerProbe
 
 
 class SessionClosedError(RuntimeError):
@@ -25,6 +29,8 @@ class AudioWindow:
 
 _CLOSED_SENTINEL = object()
 DEFAULT_MAX_PENDING_WINDOWS = 4
+MAX_SPEAKER_PROBE_HISTORY = 8
+MAX_SPEAKER_STALENESS_SAMPLES = 32_000
 
 
 class AsyncCallSession:
@@ -39,7 +45,9 @@ class AsyncCallSession:
         self.call_id = call_id
         self.speaker_profile_id = speaker_profile_id
         self.queue: asyncio.Queue[AudioWindow | object] = asyncio.Queue(maxsize=max_pending_windows)
-        self.speaker_queue: asyncio.Queue[Any] = asyncio.Queue(maxsize=max_pending_windows)
+        self.speaker_queue: asyncio.Queue[SpeakerProbe] = asyncio.Queue(maxsize=max_pending_windows)
+        self._speaker_probe_history: deque[SpeakerProbe] = deque(maxlen=MAX_SPEAKER_PROBE_HISTORY)
+        self._last_speaker_probe_sequence = 0
         self.cancellation = asyncio.Event()
         self.generation_token = token_urlsafe(18)
         self.dropped_window_count = 0
@@ -74,19 +82,42 @@ class AsyncCallSession:
         self._next_window_sequence += 1
         return self._next_window_sequence
 
-    def enqueue_speaker_window(self, samples: Any) -> None:
-        """Keeps the newest bounded speaker probe window."""
+    def enqueue_speaker_window(self, probe: SpeakerProbe | Any) -> None:
+        """Keeps the newest bounded speaker probe and its immutable metadata."""
         if self._closed or self.cancellation.is_set():
             raise SessionClosedError(f"session {self.call_id} is closed")
+        if not isinstance(probe, SpeakerProbe):
+            probe = SpeakerProbe(np.asarray(probe, dtype=np.float32), None)
+        if probe.metadata is not None:
+            if probe.metadata.speaker_window_sequence <= self._last_speaker_probe_sequence:
+                return
+            self._last_speaker_probe_sequence = probe.metadata.speaker_window_sequence
         if self.speaker_queue.full():
             self.speaker_queue.get_nowait()
-        self.speaker_queue.put_nowait(samples)
+        self._speaker_probe_history.append(probe)
+        self.speaker_queue.put_nowait(probe)
 
-    def latest_speaker_window(self) -> Any | None:
-        """Returns the newest available speaker probe without blocking AASIST."""
-        if self.speaker_queue.empty():
+    @property
+    def has_speaker_probes(self) -> bool:
+        """Reports whether this session has produced any speaker probe."""
+        return bool(self._speaker_probe_history)
+
+    def speaker_probe_for_window(self, metadata: AudioWindowMetadata | None) -> SpeakerProbe | None:
+        """Returns the newest causally aligned speaker probe within bounded age."""
+        while not self.speaker_queue.empty():
+            self.speaker_queue.get_nowait()
+        if not self._speaker_probe_history:
             return None
-        return self.speaker_queue.get_nowait()
+        if metadata is None:
+            return self._speaker_probe_history[-1]
+        candidates = [
+            probe for probe in self._speaker_probe_history
+            if probe.metadata is not None
+            and probe.metadata.canonical_end_sample <= metadata.canonical_end_sample
+            and metadata.canonical_end_sample - probe.metadata.canonical_end_sample <= MAX_SPEAKER_STALENESS_SAMPLES
+        ]
+        return max(candidates, key=lambda probe: probe.metadata.speaker_window_sequence) if candidates else None
+
     async def next_window(self) -> AudioWindow:
         """Waits for the next window or raises when the session closes."""
         item = await self.queue.get()
@@ -102,6 +133,9 @@ class AsyncCallSession:
         self.cancellation.set()
         while not self.queue.empty():
             self.queue.get_nowait()
+        self._speaker_probe_history.clear()
+        while not self.speaker_queue.empty():
+            self.speaker_queue.get_nowait()
         self.queue.put_nowait(_CLOSED_SENTINEL)
 
 
@@ -194,7 +228,7 @@ class AudioSessionRegistry:
             session.speaker_probe_scheduler = SpeakerProbeScheduler()
         source_segment = getattr(canonical, "source_segment", None)
         if session.speaker_profile_id:
-            for speaker_window in session.speaker_probe_scheduler.push(canonical.samples):
+            for speaker_window in session.speaker_probe_scheduler.push(canonical.samples, source_segment):
                 session.enqueue_speaker_window(speaker_window)
         windows = session.window_scheduler.push_with_metadata(canonical.samples, source_segment)
         for samples, metadata in windows:
