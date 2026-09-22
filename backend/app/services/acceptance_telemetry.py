@@ -52,7 +52,7 @@ class AcceptanceTelemetry:
         self.backend_windows_dropped = windows_dropped
         self.source_gap_count = source_gap_count
 
-    def record_inference(self, *, audio_window_sequence: int | None, raw_spoof_score: float, aggregate_score: float, policy_state: str, overall_risk_score: int, risk_level: str, recommended_action: str, ml_inference_latency_ms: float | None, steady_state_latency_ms: float | None) -> None:
+    def record_inference(self, *, audio_window_sequence: int | None, raw_spoof_score: float, aggregate_score: float, policy_state: str, overall_risk_score: int, risk_level: str, recommended_action: str, ml_inference_latency_ms: float | None, steady_state_latency_ms: float | None, speaker_similarity: float | None = None, speaker_state: str | None = None, fusion_state: str | None = None) -> None:
         """Adds one bounded uncalibrated model-evidence observation."""
         self.mark_first_event()
         self._inferences.append({
@@ -66,6 +66,9 @@ class AcceptanceTelemetry:
             "ml_inference_latency_ms": ml_inference_latency_ms,
             "steady_state_latency_ms": steady_state_latency_ms,
             "score_semantics": "uncalibrated",
+            "speaker_similarity": speaker_similarity,
+            "speaker_state": speaker_state,
+            "fusion_state": fusion_state,
         })
 
     def mark_cleanup(self) -> None:

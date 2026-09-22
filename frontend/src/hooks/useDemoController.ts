@@ -127,6 +127,7 @@ function createSource(scenarioId: ScenarioId | null, liveMode: boolean, onMicrop
       scenario: scenario.id,
       transaction_value: 2500000,
       currency: "INR",
+      ...(import.meta.env.VITE_SPEAKER_PROFILE_ID ? { speaker_profile_id: import.meta.env.VITE_SPEAKER_PROFILE_ID } : {}),
     },
     microphone,
   });

@@ -4,14 +4,16 @@ export type RiskLevel = (typeof RISK_LEVELS)[number];
 export const RECOMMENDED_ACTIONS = [
   "NONE",
   "MONITOR",
+  "VERIFY_IDENTITY",
   "REQUIRE_OTP",
   "REQUIRE_CALLBACK",
   "REQUIRE_VOICE_CHALLENGE",
+  "HOLD_SENSITIVE_ACTION",
   "REQUIRE_SUPERVISOR",
   "BLOCK_ACTION",
 ] as const;
 export type RecommendedAction = (typeof RECOMMENDED_ACTIONS)[number];
-export const EVIDENCE_AVAILABILITY = ["MEASURED", "NOT_EVALUATED"] as const;
+export const EVIDENCE_AVAILABILITY = ["MEASURED", "EVALUATED", "INSUFFICIENT_AUDIO", "NO_REFERENCE", "MODEL_UNAVAILABLE", "NOT_EVALUATED"] as const;
 export type EvidenceAvailability = (typeof EVIDENCE_AVAILABILITY)[number];
 
 export interface LiveRiskEvent {
@@ -40,6 +42,14 @@ export interface LiveRiskEvent {
   audio_source_gap_count?: number;
   audio_window_sequence?: number;
   aggregate_spoof_evidence?: number;
+  speaker_score_semantics?: "uncalibrated_similarity";
+  speaker_similarity?: number;
+  speaker_threshold?: number;
+  speaker_state?: "CONSISTENT" | "INCONSISTENT" | "INDETERMINATE";
+  speaker_model_id?: string;
+  expected_speaker_id?: string;
+  speaker_profile_id?: string;
+  fusion_state?: string;
 }
 
 const MIN_RISK_SCORE = 0;
@@ -126,6 +136,14 @@ export function validateLiveRiskEvent(value: unknown): LiveRiskEvent {
     audio_source_gap_count: event.audio_source_gap_count,
     audio_window_sequence: event.audio_window_sequence,
     aggregate_spoof_evidence: event.aggregate_spoof_evidence,
+    speaker_score_semantics: event.speaker_score_semantics,
+    speaker_similarity: event.speaker_similarity,
+    speaker_threshold: event.speaker_threshold,
+    speaker_state: event.speaker_state,
+    speaker_model_id: event.speaker_model_id,
+    expected_speaker_id: event.expected_speaker_id,
+    speaker_profile_id: event.speaker_profile_id,
+    fusion_state: event.fusion_state,
   };
 }
 

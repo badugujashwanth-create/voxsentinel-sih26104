@@ -29,6 +29,7 @@ from app.services.ml_risk_policy import MLRiskPolicy
 from app.services.spoof_aggregation import TemporalSpoofAggregator
 from app.services.ml_service_client import MLServiceClient
 from app.services.acceptance_telemetry import AcceptanceTelemetryRegistry
+from app.services.speaker_fusion import SpeakerEvidence, SpeakerEvidenceState, fuse_evidence
 
 #: Spacing between scenario events, mirroring ``EVENT_INTERVAL_MS`` in
 #: ``frontend/src/scenarios/scenarios.ts``. This fixes ``timestamp_ms`` in the
@@ -178,18 +179,19 @@ class MockRiskProvider(RiskProvider):
 
 
 class MLRiskProvider(RiskProvider):
-    """Consumes shared canonical windows and emits real spoof-derived events."""
+    """Consumes shared canonical windows and emits fused real-model events."""
 
-    def __init__(self, registry: AudioSessionRegistry, client: MLServiceClient, telemetry_registry: AcceptanceTelemetryRegistry | None = None) -> None:
+    def __init__(self, registry: AudioSessionRegistry, client: MLServiceClient, telemetry_registry: AcceptanceTelemetryRegistry | None = None, profile_registry=None) -> None:
         """Creates a provider over one shared runtime-session registry."""
         self.registry = registry
         self.client = client
         self.telemetry_registry = telemetry_registry
+        self.profile_registry = profile_registry
 
-    async def prepare_session(self, call_id: str) -> AsyncCallSession:
-        """Checks model readiness before registering exactly one call session."""
+    async def prepare_session(self, call_id: str, speaker_profile_id: str | None = None) -> AsyncCallSession:
+        """Checks AASIST readiness before registering exactly one runtime session."""
         await self.client.health()
-        return self.registry.register(call_id)
+        return self.registry.register(call_id, speaker_profile_id=speaker_profile_id)
 
     async def close_session(self, call_id: str, generation_token: str | None = None) -> None:
         """Closes and removes one runtime session idempotently."""
@@ -197,7 +199,7 @@ class MLRiskProvider(RiskProvider):
         self.registry.remove(call_id, generation_token)
 
     async def stream(self, session: CallSession | AsyncCallSession, cancellation: asyncio.Event) -> AsyncIterator[LiveRiskEvent]:
-        """Consumes the registered session queue and emits policy events asynchronously."""
+        """Runs AASIST and optional ECAPA on the same bounded canonical windows."""
         if not isinstance(session, AsyncCallSession):
             raise ValueError("MLRiskProvider requires an AsyncCallSession")
         registered = self.registry.get(session.call_id)
@@ -210,6 +212,7 @@ class MLRiskProvider(RiskProvider):
         aggregator = session.spoof_aggregator
         policy = session.risk_policy
         telemetry = self.telemetry_registry.get(session.call_id) if self.telemetry_registry is not None else None
+        profile = self.profile_registry.get(session.speaker_profile_id) if self.profile_registry is not None and session.speaker_profile_id else None
         if telemetry is not None:
             telemetry.mark_stream_started()
         while not cancellation.is_set():
@@ -218,50 +221,38 @@ class MLRiskProvider(RiskProvider):
             except SessionClosedError:
                 return
             inference_started = time.perf_counter()
-            evidence = await self.client.infer(window.samples)
+            spoof = await self.client.infer(window.samples)
+            speaker = SpeakerEvidence.no_reference()
+            speaker_result = None
+            if profile is not None:
+                try:
+                    speaker_result = await self.client.verify_speaker(window.samples, profile.embedding, profile.threshold)
+                    speaker = SpeakerEvidence.evaluated(float(speaker_result["cosine_similarity"]), profile.threshold)
+                except (MLServiceError, ValueError, TypeError, KeyError):
+                    speaker = SpeakerEvidence("MODEL_UNAVAILABLE", None, profile.threshold, SpeakerEvidenceState.INDETERMINATE)
+            fused = fuse_evidence(spoof.raw_spoof_score, speaker)
             if cancellation.is_set() or not self.registry.is_current(session.call_id, session.generation_token):
                 return
-            aggregate = aggregator.add(evidence)
+            aggregate = aggregator.add(spoof)
+            # AASIST temporal persistence remains authoritative for spoof-only state.
             decision = policy.evaluate(aggregate.threshold_state)
+            if profile is not None and speaker.state is not SpeakerEvidenceState.INDETERMINATE:
+                score = fused.score
+                state = fused.state
+                action = RecommendedAction(fused.action)
+                level = risk_level_for(score)
+                reasons = list(fused.reasons)
+            else:
+                score = decision.score
+                state = "AUTHENTICITY_REVIEW" if decision.score >= 70 else "NORMAL"
+                action = decision.action
+                level = decision.level
+                reasons = list(decision.reasons)
             session.event_sequence += 1
             correlation = {}
             if window.metadata is not None:
-                correlation = {
-                    "audio_source_frame_start": window.metadata.audio_source_frame_start,
-                    "audio_source_frame_end": window.metadata.audio_source_frame_end,
-                    "audio_source_transport_sequence_start": window.metadata.audio_source_transport_sequence_start,
-                    "audio_source_transport_sequence_end": window.metadata.audio_source_transport_sequence_end,
-                    "audio_source_gap_count": window.metadata.audio_source_gap_count,
-                    "audio_window_sequence": window.metadata.audio_window_sequence,
-                }
+                correlation = {"audio_source_frame_start": window.metadata.audio_source_frame_start, "audio_source_frame_end": window.metadata.audio_source_frame_end, "audio_source_transport_sequence_start": window.metadata.audio_source_transport_sequence_start, "audio_source_transport_sequence_end": window.metadata.audio_source_transport_sequence_end, "audio_source_gap_count": window.metadata.audio_source_gap_count, "audio_window_sequence": window.metadata.audio_window_sequence}
+            round_trip_ms = (time.perf_counter() - inference_started) * 1000
             if telemetry is not None:
-                telemetry.record_inference(audio_window_sequence=window.metadata.audio_window_sequence if window.metadata is not None else None, raw_spoof_score=evidence.raw_spoof_score, aggregate_score=aggregate.aggregate_score, policy_state=decision.state, overall_risk_score=decision.score, risk_level=decision.level.value, recommended_action=decision.action.value, ml_inference_latency_ms=evidence.inference_ms, steady_state_latency_ms=None)
-
-            yield LiveRiskEvent(
-                call_id=session.call_id,
-                sequence=session.event_sequence,
-                timestamp_ms=int(time.time() * 1000),
-                synthetic_probability=evidence.raw_spoof_score,
-                speaker_match_score=0.0,
-                speaker_mismatch_score=0.0,
-                prosody_anomaly_score=0.0,
-                replay_risk_score=0.0,
-                context_risk_score=0.0,
-                overall_risk_score=decision.score,
-                risk_level=decision.level,
-                reasons=list(decision.reasons),
-                recommended_action=decision.action,
-                inference_latency_ms=evidence.inference_ms,
-                provider_round_trip_ms=(time.perf_counter() - inference_started) * 1000,
-                preprocessing_latency_ms=evidence.preprocessing_ms,
-                synthetic_score_semantics="uncalibrated",
-                aggregate_spoof_evidence=aggregate.aggregate_score,
-                evidence_availability={
-                    "speaker_match_score": EvidenceAvailability.NOT_EVALUATED,
-                    "speaker_mismatch_score": EvidenceAvailability.NOT_EVALUATED,
-                    "prosody_anomaly_score": EvidenceAvailability.NOT_EVALUATED,
-                    "replay_risk_score": EvidenceAvailability.NOT_EVALUATED,
-                    "context_risk_score": EvidenceAvailability.NOT_EVALUATED,
-                },
-                **correlation,
-            )
+                telemetry.record_inference(audio_window_sequence=window.metadata.audio_window_sequence if window.metadata is not None else None, raw_spoof_score=spoof.raw_spoof_score, aggregate_score=aggregate.aggregate_score, policy_state=state, overall_risk_score=score, risk_level=level.value, recommended_action=action.value, ml_inference_latency_ms=round_trip_ms, steady_state_latency_ms=None, speaker_similarity=speaker.similarity, speaker_state=speaker.state.value, fusion_state=state)
+            yield LiveRiskEvent(call_id=session.call_id, sequence=session.event_sequence, timestamp_ms=int(time.time() * 1000), synthetic_probability=spoof.raw_spoof_score, speaker_match_score=max(0.0, float(speaker.similarity or 0.0)), speaker_mismatch_score=max(0.0, 1.0 - float(speaker.similarity or 0.0)) if speaker.similarity is not None else 0.0, prosody_anomaly_score=0.0, replay_risk_score=0.0, context_risk_score=0.0, overall_risk_score=score, risk_level=level, reasons=reasons, recommended_action=action, inference_latency_ms=round_trip_ms, provider_round_trip_ms=round_trip_ms, preprocessing_latency_ms=spoof.preprocessing_ms, synthetic_score_semantics="uncalibrated", speaker_score_semantics="uncalibrated_similarity" if speaker.similarity is not None else None, speaker_similarity=speaker.similarity, speaker_threshold=speaker.threshold, speaker_state=speaker.state.value, speaker_model_id=speaker_result.get("model_id") if speaker_result else None, expected_speaker_id=getattr(profile, "expected_speaker_id", None), speaker_profile_id=getattr(profile, "profile_id", None), fusion_state=state, aggregate_spoof_evidence=aggregate.aggregate_score, evidence_availability={"speaker_match_score": EvidenceAvailability.EVALUATED if speaker.similarity is not None else EvidenceAvailability.NOT_EVALUATED if profile is None else EvidenceAvailability.MODEL_UNAVAILABLE, "speaker_mismatch_score": EvidenceAvailability.EVALUATED if speaker.similarity is not None else EvidenceAvailability.NOT_EVALUATED if profile is None else EvidenceAvailability.MODEL_UNAVAILABLE, "prosody_anomaly_score": EvidenceAvailability.NOT_EVALUATED, "replay_risk_score": EvidenceAvailability.NOT_EVALUATED, "context_risk_score": EvidenceAvailability.NOT_EVALUATED}, **correlation)

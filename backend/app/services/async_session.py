@@ -30,13 +30,14 @@ DEFAULT_MAX_PENDING_WINDOWS = 4
 class AsyncCallSession:
     """Owns one call's bounded inference queue and cancellation state."""
 
-    def __init__(self, call_id: str, max_pending_windows: int = DEFAULT_MAX_PENDING_WINDOWS) -> None:
+    def __init__(self, call_id: str, max_pending_windows: int = DEFAULT_MAX_PENDING_WINDOWS, speaker_profile_id: str | None = None) -> None:
         """Creates an open session with a bounded pending-window queue."""
         if not call_id.strip():
             raise ValueError("call_id must not be blank")
         if max_pending_windows < 1:
             raise ValueError("max_pending_windows must be positive")
         self.call_id = call_id
+        self.speaker_profile_id = speaker_profile_id
         self.queue: asyncio.Queue[AudioWindow | object] = asyncio.Queue(maxsize=max_pending_windows)
         self.cancellation = asyncio.Event()
         self.generation_token = token_urlsafe(18)
@@ -97,11 +98,11 @@ class AudioSessionRegistry:
         """Creates an empty runtime-session registry."""
         self._sessions: dict[str, AsyncCallSession] = {}
 
-    def register(self, call_id: str, max_pending_windows: int = DEFAULT_MAX_PENDING_WINDOWS) -> AsyncCallSession:
+    def register(self, call_id: str, max_pending_windows: int = DEFAULT_MAX_PENDING_WINDOWS, speaker_profile_id: str | None = None) -> AsyncCallSession:
         """Registers one runtime session and rejects duplicate call ids."""
         if call_id in self._sessions:
             raise ValueError(f"session for {call_id} is already registered")
-        session = AsyncCallSession(call_id, max_pending_windows)
+        session = AsyncCallSession(call_id, max_pending_windows, speaker_profile_id)
         self._sessions[call_id] = session
         return session
 

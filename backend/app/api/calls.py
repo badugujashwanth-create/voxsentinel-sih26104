@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import numpy as np
 import json
 import os
 import time
@@ -12,7 +14,7 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 
 from app.config import get_settings
-from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCallResponse
+from app.models.call import CallSession, CallStatus, CreateCallRequest, CreateCallResponse, CreateSpeakerProfileRequest
 from app.services.call_service import CallNotFoundError, CallService
 from app.services.async_session import AudioSessionRegistry, SessionClosedError
 from app.services.audio_conversion import AudioConversionError
@@ -21,6 +23,7 @@ from app.services.audio_protocol import AudioProtocolError, AudioStartMetadata
 from app.services.audio_stream import AudioStreamHandler
 from app.services.ml_service_client import MLServiceClient, MLServiceError
 from app.services.acceptance_telemetry import AcceptanceTelemetryRegistry
+from app.services.speaker_profiles import SpeakerProfileRegistry
 from app.services.risk_provider import MLRiskProvider, MockRiskProvider, RiskProvider
 from app.state.session_store import SessionStore
 
@@ -68,6 +71,10 @@ def get_audio_session_registry() -> AudioSessionRegistry:
 
 
 @lru_cache(maxsize=1)
+def get_speaker_profile_registry() -> SpeakerProfileRegistry:
+    """Returns the bounded process-local profile registry."""
+    return SpeakerProfileRegistry()
+
 def get_acceptance_telemetry_registry() -> AcceptanceTelemetryRegistry:
     """Returns ephemeral acceptance snapshots for local verification."""
     return AcceptanceTelemetryRegistry()
@@ -80,7 +87,7 @@ def get_risk_provider() -> RiskProvider:
     """
     settings = get_settings()
     if settings.risk_provider_mode.value == "ml":
-        return MLRiskProvider(get_audio_session_registry(), MLServiceClient(settings.ml_service_url), get_acceptance_telemetry_registry())
+        return MLRiskProvider(get_audio_session_registry(), MLServiceClient(settings.ml_service_url), get_acceptance_telemetry_registry(), get_speaker_profile_registry())
     return MockRiskProvider(emit_interval_ms=settings.risk_emit_interval_ms)
 
 
@@ -106,6 +113,22 @@ async def read_acceptance_telemetry(call_id: str) -> object:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No acceptance telemetry for call")
     return telemetry.snapshot()
 
+@router.post("/speaker-profiles", status_code=status.HTTP_201_CREATED)
+async def create_speaker_profile(request: CreateSpeakerProfileRequest) -> object:
+    """Creates a bounded profile from ephemeral canonical float32 audio."""
+    provider = get_risk_provider()
+    if not isinstance(provider, MLRiskProvider):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Speaker profiles require ML mode")
+    try:
+        samples = np.frombuffer(base64.b64decode(request.samples_base64, validate=True), dtype="<f4").copy()
+        if samples.ndim != 1 or samples.size < 48_000 or not np.isfinite(samples).all():
+            raise ValueError("profile audio must be finite mono float32 with at least 3 seconds")
+        result = await provider.client.embed_speaker(samples.astype(np.float32))
+        profile = get_speaker_profile_registry().add(request.expected_speaker_id, result, request.provenance)
+        return {"profile_id": profile.profile_id, "expected_speaker_id": profile.expected_speaker_id, "model_id": profile.model_id, "model_revision": profile.model_revision, "embedding_dimensions": profile.embedding_dimensions, "threshold": profile.threshold, "score_semantics": "uncalibrated_embedding"}
+    except (ValueError, MLServiceError) as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+
 @router.get("/{call_id}", response_model=CallSession)
 def read_call(call_id: str, service: CallService = Depends(get_call_service)) -> CallSession:
     """Returns the full current state of one call session."""
@@ -119,7 +142,8 @@ async def start_call(call_id: str, service: CallService = Depends(get_call_servi
     runtime_session = None
     if isinstance(provider, MLRiskProvider):
         try:
-            runtime_session = await provider.prepare_session(call_id)
+            call = service.get(call_id)
+            runtime_session = await provider.prepare_session(call_id, call.speaker_profile_id)
             if os.getenv("VOXSENTINEL_ACCEPTANCE_TELEMETRY", "") == "1":
                 get_acceptance_telemetry_registry().create(call_id)
         except MLServiceError as error:
