@@ -1,0 +1,23 @@
+.shiny-text {
+  display: inline-block;
+  color: var(--text);
+  background: linear-gradient(115deg, var(--text) 0%, var(--text) 38%, var(--cyan-bright) 50%, var(--text) 62%, var(--text) 100%);
+  background-size: 220% 100%;
+  background-position: 120% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: voxsentinel-brand-sheen 2.8s cubic-bezier(.2,.7,.2,1) 1 both;
+}
+
+@keyframes voxsentinel-brand-sheen {
+  from { background-position: 120% 50%; }
+  to { background-position: -20% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shiny-text {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
