@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type { DemoController } from "../../hooks/useDemoController";
+import { ShinyText } from "../ui/ShinyText";
 import type { VerificationMethod } from "../../domain/verification";
 import { SCENARIOS, type ScenarioId } from "../../scenarios/scenarios";
 
@@ -74,7 +75,7 @@ export function SecurityConsole({ controller, verificationOpen, onOpenVerificati
 /** Renders the persistent product and demo-mode header. */
 function ConsoleHeader({ isLive, incidentId, liveMode, microphoneState, onReset }: { isLive: boolean; incidentId: string | null; liveMode: boolean; microphoneState: string; onReset(): void }) {
   const incidentLabel = incidentId ? `Incident #${incidentId}` : "Session pending";
-  return <header className="brand-header console-header"><div className="brand-lockup"><AudioLines size={21} /><span>VoxSentinel</span><span className="brand-slash">/</span><small>Forensic Command Workspace</small></div><div className="header-center"><span className="incident-tag"><span className={`status-dot ${isLive ? "status-dot--green" : "status-dot--muted"}`} /> {incidentLabel}</span><span className="header-separator">Â·</span><span>{isLive ? "Live call monitored" : liveMode ? "Awaiting backend call" : "Awaiting call"}</span>{liveMode && <><span className="mono-label">MIC {microphoneState}</span><span className="mono-label">RAW AUDIO NOT RETAINED</span></>}</div><div className="header-actions"><span className="simulation-badge"><span className={`status-dot ${liveMode ? "status-dot--green" : "status-dot--cyan"}`} /> {liveMode ? "LIVE MODE" : "DEMO MODE"}</span><button className="icon-button" aria-label="Reset scenario" onClick={onReset}><RotateCcw size={16} /></button></div></header>;
+  return <header className="brand-header console-header"><div className="brand-lockup"><AudioLines size={21} /><ShinyText text="VoxSentinel" /><span className="brand-slash">/</span><small>Forensic Command Workspace</small></div><div className="header-center"><span className="incident-tag"><span className={`status-dot ${isLive ? "status-dot--green" : "status-dot--muted"}`} /> {incidentLabel}</span><span className="header-separator">Â·</span><span>{isLive ? "Live call monitored" : liveMode ? "Awaiting backend call" : "Awaiting call"}</span>{liveMode && <><span className="mono-label">MIC {microphoneState}</span><span className="mono-label">RAW AUDIO NOT RETAINED</span></>}</div><div className="header-actions"><span className="simulation-badge"><span className={`status-dot ${liveMode ? "status-dot--green" : "status-dot--cyan"}`} /> {liveMode ? "LIVE MODE" : "DEMO MODE"}</span><button className="icon-button" aria-label="Reset scenario" onClick={onReset}><RotateCcw size={16} /></button></div></header>;
 }
 
 /** Renders the above-fold identity, request, call, and risk context. */

@@ -140,3 +140,88 @@
     opacity: .62;
   }
 }
+
+/* Release polish: a restrained technical field keeps the console dimensional
+   without competing with measured evidence or security actions. */
+.launcher-page,
+.console-page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 76% 16%, rgba(6, 182, 212, .08), transparent 28rem),
+    var(--canvas);
+}
+
+.launcher-page::before,
+.console-page::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, .035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  content: "";
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .8), transparent 78%);
+}
+
+.brand-header {
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 1px 0 rgba(56, 189, 248, .04), 0 18px 42px rgba(0, 0, 0, .16);
+}
+
+.brand-header::after {
+  position: absolute;
+  right: 30px;
+  bottom: -1px;
+  left: 30px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(6, 182, 212, .4), transparent);
+  content: "";
+  opacity: .6;
+}
+
+.console-body,
+.launcher-content {
+  position: relative;
+  z-index: 1;
+}
+
+.console-grid,
+.timeline-panel,
+.reason-panel,
+.context-strip {
+  box-shadow: 0 18px 45px rgba(0, 0, 0, .12);
+}
+
+.status-dot--green {
+  animation: live-status-pulse 2.4s ease-in-out infinite;
+}
+
+.evidence-row,
+.protection-state,
+.timeline-panel,
+.reason-panel,
+.context-strip {
+  transition: border-color .22s ease, background-color .22s ease, box-shadow .22s ease;
+}
+
+.evidence-row:hover {
+  border-color: rgba(56, 189, 248, .25);
+}
+
+@keyframes live-status-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, .12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot--green { animation: none; }
+  .evidence-row,
+  .protection-state,
+  .timeline-panel,
+  .reason-panel,
+  .context-strip { transition: none; }
+}
