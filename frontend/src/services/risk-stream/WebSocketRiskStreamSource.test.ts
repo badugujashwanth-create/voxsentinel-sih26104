@@ -37,6 +37,15 @@ describe("WebSocketRiskStreamSource", () => {
     source.dispose();
   });
 
+  it("preserves secure WebSocket configuration", async () => {
+    const source = new WebSocketRiskStreamSource("call-17", "https://api.example.test/", "wss://api.example.test/");
+    await source.start({ onEvent: vi.fn(), onStatusChange: vi.fn(), onError: vi.fn() });
+    const socket = (source as unknown as { socket: { url: string } }).socket;
+
+    expect(socket.url).toBe("wss://api.example.test/api/v1/calls/call-17/risk-stream");
+    source.dispose();
+  });
+
   it.each([
     [4404, "Backend call was not found (4404)"],
     [4409, "Backend call is not live (4409)"],

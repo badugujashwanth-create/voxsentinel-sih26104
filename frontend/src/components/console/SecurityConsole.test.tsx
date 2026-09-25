@@ -108,3 +108,19 @@ describe("SecurityConsole speaker evidence", () => {
     expect(screen.getByText("-0.11")).toBeInTheDocument();
   });
 });
+
+describe("SecurityConsole elapsed timer", () => {
+  it("renders live epoch timestamps as elapsed call duration", () => {
+    const firstEvent = { ...liveEvent, timestamp_ms: 1790268300178 };
+    const latestEvent = { ...firstEvent, timestamp_ms: 1790268304750, sequence: 2 };
+    const controller = {
+      ...buildController(vi.fn().mockResolvedValue(undefined)),
+      currentEvent: latestEvent,
+      timeline: [firstEvent, latestEvent],
+    };
+
+    render(<SecurityConsole controller={controller} verificationOpen={false} onOpenVerification={vi.fn()} onCloseVerification={vi.fn()} />);
+
+    expect(screen.getByText("00:04.57", { exact: true })).toBeInTheDocument();
+  });
+});

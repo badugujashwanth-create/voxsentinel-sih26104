@@ -20,6 +20,7 @@ type MicrophoneLike = Pick<MicrophoneSession, "start" | "stop" | "reset" | "disp
 export interface LiveCallRiskStreamSourceOptions extends CallSessionClientOptions {
   request: LiveCallRequest;
   microphone?: MicrophoneLike;
+  wsBaseUrl?: string;
 }
 
 /** Orchestrates backend call creation, start, streaming, and stop lifecycle. */
@@ -27,6 +28,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
   private readonly request: CreateCallRequest;
   private readonly client: CallSessionOperations;
   private readonly baseUrl: string | undefined;
+  private readonly wsBaseUrl: string | undefined;
   private stream: WebSocketRiskStreamSource | undefined;
   private session: CreateCallResponse | undefined;
   private started = false;
@@ -42,6 +44,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
     this.request = options.request;
     this.client = client;
     this.baseUrl = options.baseUrl;
+    this.wsBaseUrl = options.wsBaseUrl;
     this.microphone = options.microphone;
   }
 
@@ -59,7 +62,7 @@ export class LiveCallRiskStreamSource implements RiskStreamSource {
         await this.stopBackendSession();
         return;
       }
-      this.stream = new WebSocketRiskStreamSource(this.session.call_id, this.baseUrl);
+      this.stream = new WebSocketRiskStreamSource(this.session.call_id, this.baseUrl, this.wsBaseUrl);
       await this.stream.start(this.createStreamHandlers(handlers));
       await this.microphone?.start(this.session.call_id);
     } catch (error) {

@@ -21,11 +21,12 @@ export interface MicrophoneSessionDependencies {
   createBridge?: (context: AudioContext, channels: 1 | 2, onFrame: AudioFrameHandler, source: AudioNode) => AudioWorkletBridge;
   createMediaStreamSource?: (stream: MediaStream) => MediaStreamAudioSourceNode;
   baseUrl?: string;
+  wsBaseUrl?: string;
 }
 
 /** Coordinates permission, audio_ready gating, transport, and microphone cleanup. */
 export class MicrophoneSession {
-  private readonly dependencies: Required<Pick<MicrophoneSessionDependencies, "getUserMedia" | "createAudioContext" | "createSocket" | "createBridge">> & Pick<MicrophoneSessionDependencies, "baseUrl" | "createMediaStreamSource">;
+  private readonly dependencies: Required<Pick<MicrophoneSessionDependencies, "getUserMedia" | "createAudioContext" | "createSocket" | "createBridge">> & Pick<MicrophoneSessionDependencies, "baseUrl" | "wsBaseUrl" | "createMediaStreamSource">;
   private readonly onStateChange?: (state: MicrophoneState) => void;
   private generation = 0;
   private stream: MediaStream | undefined;
@@ -49,6 +50,7 @@ export class MicrophoneSession {
       createBridge: dependencies.createBridge ?? ((context, channels, onFrame, source) => new AudioWorkletBridge(context, channels, onFrame, source)),
       createMediaStreamSource: dependencies.createMediaStreamSource,
       baseUrl: dependencies.baseUrl,
+      wsBaseUrl: dependencies.wsBaseUrl,
     };
     this.onStateChange = onStateChange;
   }
@@ -69,7 +71,7 @@ export class MicrophoneSession {
       if (this.context.state === "suspended") await this.context.resume();
       this.sourceNode = this.dependencies.createMediaStreamSource ? this.dependencies.createMediaStreamSource(this.stream) : this.context.createMediaStreamSource(this.stream);
       this.setState("CONNECTING");
-      this.socket = this.dependencies.createSocket(buildAudioWebSocketUrl(this.dependencies.baseUrl, callId));
+      this.socket = this.dependencies.createSocket(buildAudioWebSocketUrl(this.dependencies.wsBaseUrl ?? this.dependencies.baseUrl, callId));
       await waitForSocketOpen(this.socket);
       this.socket.send(encodeAudioStart({ protocol_version: 1, sample_rate: this.context.sampleRate, channels: 1, sample_format: "float32le" }));
       await waitForAudioReady(this.socket);
@@ -151,7 +153,7 @@ export class MicrophoneSession {
 function buildAudioWebSocketUrl(baseUrl: string | undefined, callId: string): string {
   const origin = baseUrl ?? window.location.origin;
   const url = new URL(origin);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.protocol = url.protocol === "https:" || url.protocol === "wss:" ? "wss:" : "ws:";
   url.pathname = `${url.pathname.replace(/\/+$/, "")}/api/v1/calls/${encodeURIComponent(callId)}/audio-stream`;
   return url.toString();
 }

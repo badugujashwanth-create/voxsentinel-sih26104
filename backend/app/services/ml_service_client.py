@@ -13,7 +13,9 @@ from app.models.ml_evidence import RawSpoofEvidence
 EXPECTED_SAMPLE_COUNT = 64_600
 EXPECTED_SAMPLE_RATE = 16_000
 SPEAKER_MINIMUM_SAMPLES = 32_000
-REQUEST_TIMEOUT_SECONDS = 5.0
+# Free-tier hosted model cold starts can exceed five seconds before returning
+# the first real embedding; keep the timeout bounded but deployment-safe.
+REQUEST_TIMEOUT_SECONDS = 30.0
 
 
 class MLServiceError(RuntimeError):

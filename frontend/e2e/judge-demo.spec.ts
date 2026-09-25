@@ -8,7 +8,7 @@ test("runs the canonical high-value transfer protection flow", async ({ page }) 
   await expect(page.getByText("CALL READY", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /Start analysis/i }).click();
 
-  await expect(page.getByText("LIVE CALL", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Call context" }).getByText("LIVE CALL", { exact: true })).toBeVisible();
   await expect(page.getByText("18").first()).toBeVisible();
   await expect(page.getByText("79").first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText("92").first()).toBeVisible({ timeout: 10_000 });

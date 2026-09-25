@@ -20,7 +20,7 @@ export class AudioWorkletBridge {
 
   /** Loads the dedicated worklet, attaches the frame callback, and connects it. */
   public async start(): Promise<void> {
-    await this.context.audioWorklet.addModule(new URL("./microphone-worklet.ts", import.meta.url));
+    await this.context.audioWorklet.addModule(new URL("./microphone-worklet.js", import.meta.url));
     this.node = new AudioWorkletNode(this.context, "voxsentinel-microphone", { processorOptions: { channels: this.channels } });
     this.node.port.onmessage = (event: MessageEvent) => {
       if (event.data?.type === "frame") this.onFrame(event.data);
