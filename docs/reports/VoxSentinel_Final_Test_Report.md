@@ -38,3 +38,7 @@ The code and tests cover malformed VXAF, sequence gaps/overlap, duplicate produc
 ## Integrity statement
 
 No fabricated LIVE model output, hosted URL, latency, FAR/FRR/EER, physical microphone claim, Indian-language claim, telecom claim, or blockchain claim is included in this report.
+
+## Hosted deployment attempt
+
+Vercel `https://voxsentinel.vercel.app`, Render backend `https://voxsentinel-backend.onrender.com`, and Render ML `https://voxsentinel-ml.onrender.com` were created from the deployment branch. Public HTTPS, explicit CORS preflight, and both WSS routes were observed. ML health reported AASIST and ECAPA readiness, and a direct ECAPA embedding request returned the pinned revision. The free ML service then restarted repeatedly during hosted inference; therefore hosted AASIST/ECAPA evidence, hosted latency, hosted soak, and hosted second-session acceptance are **NOT VALIDATED YET**. Local controlled LIVE remains the verified fallback.

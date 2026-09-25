@@ -4,7 +4,7 @@
 
 VoxSentinel is a frozen SIH26104 prototype for detecting voice-cloning impersonation during a sensitive call. The implementation keeps voice authenticity and speaker identity as separate evidence streams, combines available evidence with deterministic temporal policy, and exposes a judge-facing action with explicit degraded states.
 
-This report describes the repository as stabilized on the deployment branch. Public Vercel/Render execution is **NOT VALIDATED YET** because this workspace has no authenticated Vercel or Render deployment client and no hosted service URLs. The deterministic DEMO path is a **SIMULATED POLICY DEMONSTRATION**, not model evidence.
+This report describes the repository as stabilized on the deployment branch. Public Vercel and Render services were created and health-verified, but hosted LIVE model evidence remains **NOT VALIDATED YET** because the free Render ML runtime repeatedly restarted during real inference. The deterministic DEMO path is a **SIMULATED POLICY DEMONSTRATION**, not model evidence.
 
 ## Problem and design goals
 
@@ -62,7 +62,7 @@ The recorded local inference host was an Intel 12th Gen Core i5-12450H with 15.7
 
 ## Limitations
 
-There is no broad Indian-accent validation, multilingual validation, telecom codec benchmark, replay model, prosody model, context model, population calibration, or blockchain implementation. The AASIST set is small and exploratory; the ECAPA set is controlled clean speech. A physical microphone, hosted runtime, and hosted latency are **NOT VALIDATED YET** in this workspace.
+There is no broad Indian-accent validation, multilingual validation, telecom codec benchmark, replay model, prosody model, context model, population calibration, or blockchain implementation. The AASIST set is small and exploratory; the ECAPA set is controlled clean speech. A physical microphone, stable hosted inference runtime, and hosted latency are **NOT VALIDATED YET** in this workspace.
 
 ## Judge procedure
 

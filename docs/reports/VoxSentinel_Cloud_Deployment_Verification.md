@@ -2,7 +2,13 @@
 
 ## Status
 
-Cloud deployment is **PENDING_HUMAN**. The repository now contains reproducible Vercel and Render configuration, but this workspace has no authenticated Vercel CLI, no Render CLI/API token, and no provider-created public URLs. No cloud deployment is claimed.
+Cloud services were created and authenticated from `deploy/vercel-render` at commit `d6410e8`.
+
+- Vercel: `https://voxsentinel.vercel.app` (production build READY)
+- Render backend: `https://voxsentinel-backend.onrender.com` (`/health` 200)
+- Render ML: `https://voxsentinel-ml.onrender.com` (`/health` has reported AASIST and ECAPA ready)
+
+Hosted LIVE is **BLOCKED on the free Render ML runtime**. Public WSS routing and backend startup were observed, but real hosted inference caused repeated ML process restarts/no-port intervals and subsequent 502/unavailable responses. No hosted LIVE model evidence or hosted latency is claimed.
 
 ## Target topology
 
@@ -23,9 +29,9 @@ Render ML (AASIST + ECAPA)
 - Backend starts on `0.0.0.0:$PORT`, uses `VOXSENTINEL_RISK_PROVIDER=ml`, and receives `VOXSENTINEL_ML_SERVICE_URL` and `VOXSENTINEL_CORS_ORIGINS` as deployment environment values.
 - Frontend values are `VITE_API_BASE_URL=https://<backend>` and `VITE_API_WS_URL=wss://<backend>`; no production request may use localhost or `ws://`.
 
-## Required provider verification
+## Verification performed
 
-After human provider setup, verify ML `/health` returns `ready=true`, `speaker_ready=true`, the expected AASIST checkpoint is loaded, and ECAPA reports the pinned revision. Verify backend `/health`, backend-to-ML inference, Vercel HTTPS, audio WSS, risk WSS, explicit CORS, clean browser console, DEMO, LIVE, Stop, Reset, and second session.
+ML `/health` returned `ready=true`, `speaker_ready=true`, AASIST `AASIST/AASIST.pth@ASVspoof2019-LA`, and ECAPA revision `0f99f2d0ebe89ac095bcc5903c4dd8f72b367286`; a direct hosted ECAPA embed returned HTTP 200. Backend `/health` returned HTTP 200, explicit CORS returned HTTP 200 preflight, and the public browser accepted both `wss://` risk and audio sockets. Hosted LIVE did not produce a stable real inference stream because the free ML service restarted during inference.
 
 ## Free-plan risk and cold start
 
@@ -33,4 +39,4 @@ Free Render services create `SIH_DEMO_COLD_START_RISK`. Because free services ca
 
 ## Not validated yet
 
-Public URLs, hosted first-fused latency, hosted p50/p95, hosted 60-second soak, TLS/CORS from a public browser, provider memory behavior, and hosted screenshots/video are all **NOT VALIDATED YET**.
+Hosted first-fused latency, hosted p50/p95, hosted 60-second inference soak, stable AASIST/ECAPA evidence, second-session hosted LIVE, and hosted action evidence are **NOT VALIDATED YET**. The hosted run artifacts contain failure diagnostics only and must not be presented as model evidence. Use the verified local controlled LIVE video as fallback.

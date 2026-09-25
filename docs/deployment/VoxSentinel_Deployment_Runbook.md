@@ -13,6 +13,8 @@
 
 Use the Blueprint in `render.yaml`. It requests the free Render web-service plan for both services. Create the ML service first, confirm `/health` with both models ready, then set the backend ML service's public HTTPS URL and Vercel origin in Render environment settings. Free services have cold starts, 512 MB RAM, and no private networking; treat model OOM or startup failure as a real deployment blocker. Do not commit secrets or service URLs.
 
+Current public services: backend `https://voxsentinel-backend.onrender.com`; ML `https://voxsentinel-ml.onrender.com`. The free ML service loaded both models and served health/direct ECAPA requests, but repeated process restarts occurred during hosted inference. A paid/higher-memory Render instance or another ML host is required before claiming hosted LIVE acceptance.
+
 ## Vercel
 
 Create a project from the deployment branch, keep the repository root as the project root, and set `VITE_DEMO_MODE=false`, `VITE_API_BASE_URL=https://<render-backend>`, and `VITE_API_WS_URL=wss://<render-backend>`. Deploy only after `npm run build` passes.
