@@ -153,7 +153,7 @@ export class MicrophoneSession {
 function buildAudioWebSocketUrl(baseUrl: string | undefined, callId: string): string {
   const origin = baseUrl ?? window.location.origin;
   const url = new URL(origin);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.protocol = url.protocol === "https:" || url.protocol === "wss:" ? "wss:" : "ws:";
   url.pathname = `${url.pathname.replace(/\/+$/, "")}/api/v1/calls/${encodeURIComponent(callId)}/audio-stream`;
   return url.toString();
 }

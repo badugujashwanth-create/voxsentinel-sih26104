@@ -111,7 +111,7 @@ function parseMessage(data: unknown): unknown {
 /** Builds the backend WebSocket endpoint without hardcoded hostnames. */
 function buildStreamUrl(baseUrl: string, callId: string): string {
   const parsed = new URL(baseUrl || window.location.origin);
-  parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+  parsed.protocol = parsed.protocol === "https:" || parsed.protocol === "wss:" ? "wss:" : "ws:";
   parsed.pathname = `${trimTrailingSlash(parsed.pathname)}${RISK_STREAM_PATH}/${encodeURIComponent(callId)}/risk-stream`;
   parsed.search = "";
   return parsed.toString();
