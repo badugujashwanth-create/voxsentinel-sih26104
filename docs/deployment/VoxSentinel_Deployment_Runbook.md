@@ -11,7 +11,7 @@
 
 ## Render
 
-Use the Blueprint in `render.yaml`. Create the ML service first, confirm `/health` with both models ready, then set the backend ML service URL and Vercel origin in Render environment settings. Do not commit secrets or URLs that belong to a private Render service.
+Use the Blueprint in `render.yaml`. It requests the free Render web-service plan for both services. Create the ML service first, confirm `/health` with both models ready, then set the backend ML service's public HTTPS URL and Vercel origin in Render environment settings. Free services have cold starts, 512 MB RAM, and no private networking; treat model OOM or startup failure as a real deployment blocker. Do not commit secrets or service URLs.
 
 ## Vercel
 
