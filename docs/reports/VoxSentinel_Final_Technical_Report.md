@@ -56,6 +56,10 @@ The committed evaluation artifacts record controlled exploratory tests, not prod
 
 `render.yaml` defines a Render ML service and backend. ML assets are retrieved by checksum-verifying setup scripts; the ML health endpoint can require both AASIST and ECAPA with `VOXSENTINEL_REQUIRE_SPEAKER_MODEL=true`. The backend binds `0.0.0.0:$PORT`, uses `VOXSENTINEL_ML_SERVICE_URL`, and allows only configured origins. `vercel.json` builds `frontend` and rewrites SPA routes to `index.html`.
 
+## Local measurement host
+
+The recorded local inference host was an Intel 12th Gen Core i5-12450H with 15.7 GB RAM, Intel UHD Graphics, and Windows 11 Home Single Language 64-bit. These host facts describe the controlled local run only; hosted compute and hosted latency remain unvalidated.
+
 ## Limitations
 
 There is no broad Indian-accent validation, multilingual validation, telecom codec benchmark, replay model, prosody model, context model, population calibration, or blockchain implementation. The AASIST set is small and exploratory; the ECAPA set is controlled clean speech. A physical microphone, hosted runtime, and hosted latency are **NOT VALIDATED YET** in this workspace.

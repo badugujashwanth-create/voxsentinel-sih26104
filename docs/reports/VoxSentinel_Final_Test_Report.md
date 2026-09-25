@@ -18,6 +18,8 @@ The following commands were executed in this workspace on the deployment branch.
 
 The ML full-suite skips are explicit fixture skips, not failures. The local stack loaded AASIST and ECAPA and produced LIVE model evidence through the browser-controlled audio path.
 
+The recorded local inference host was an Intel 12th Gen Core i5-12450H, 15.7 GB RAM, Intel UHD Graphics, Windows 11 Home Single Language 64-bit. This does not establish hosted compute characteristics.
+
 ## Regression fixes
 
 - LIVE selectors are scoped to the accessible `Call context` region rather than relying on a page-wide exact-text match.
