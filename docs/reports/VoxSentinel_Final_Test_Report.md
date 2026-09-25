@@ -1,50 +1,38 @@
 # VoxSentinel Final Test Report
 
-Commit under test: `edcb1ee835fc065f9023161bed1abab2e2e8c4cc`
+## Current verification record
 
-## Suite summary
+The following commands were executed in this workspace on the deployment branch. Cloud-provider checks are intentionally separated from local evidence.
 
-| Component | Suite | Passed | Failed | Skipped | Result |
-|---|---|---:|---:|---:|---|
-| Backend | `backend/.venv-jash005-review/Scripts/python.exe -m pytest backend/tests -q` | 147 | 0 | 0 | PASS |
-| ML | `ml/.venv-verification/Scripts/python.exe -m pytest tests/ml -q` | 220 | 0 | 14 | PASS with prepared-evaluation skips |
-| ML fast | `pytest tests/ml -m "not integration"` | 203 | 0 | 0 | PASS |
-| Frontend | `npm.cmd test -- --run` | 65 | 0 | 0 | PASS |
-| Frontend lint | `npm.cmd run lint` | — | 0 | — | PASS |
-| Frontend build | `npm.cmd run build` | — | 0 | — | PASS |
-| DEMO E2E | `judge-demo.spec.ts` | 1 | 0 | 0 | PASS |
-| Browser LIVE | `microphone-live.spec.ts` | functional path verified; stale cosine assertion | 1 harness assertion | — | TEST MAINTENANCE NEEDED |
+| Area | Command | Result |
+| --- | --- | --- |
+| Frontend unit | `npm test -- --run` | PASS: 66 tests in 19 files |
+| Frontend lint | `npm run lint` | PASS |
+| Frontend build | `npm run build` | PASS |
+| DEMO E2E | `npm run test:e2e -- --project=chromium frontend/e2e/judge-demo.spec.ts` | PASS: 1 test |
+| Backend full | `python -m pytest backend/tests -q -rA` | PASS: 147 tests |
+| ML full | `python -m pytest tests/ml -q -ra` | PASS: 220 tests; 14 skips because prepared evaluation samples are absent |
+| ML fast | `python -m pytest tests/ml -m "not integration" -q -rA` | PASS: 203 tests |
+| ML asset verification | `python ml/scripts/setup_aasist.py --verify-only`; `python ml/scripts/setup_ecapa.py --verify-only` | PASS: approved AASIST SHA and ECAPA revision verified |
+| Hosted E2E | Vercel/Render public path | NOT VALIDATED YET: no authenticated deployment or public URLs |
 
-The failed microphone E2E assertion compared a two-decimal UI rendering against a full-precision backend cosine. The product path produced real ECAPA evidence; the assertion requires rounding-aware comparison.
+The ML full-suite skips are explicit fixture skips, not failures. The local stack loaded AASIST and ECAPA and produced LIVE model evidence through the browser-controlled audio path.
 
-## Controlled LIVE evidence
+## Regression fixes
 
-- Call ID: `52a2f72ec1a6`
-- Sample rate: 48 kHz
-- Channels: 1
-- Browser frames: 1,414 produced and sent
-- Browser drops: 0
-- Transport gaps: 0
-- Fused observations: 50
-- AASIST evidence: present
-- ECAPA cosine: present, including negative values
-- Stop cleanup: tracks, AudioContext, and audio socket inactive
-- Console errors: none
+- LIVE selectors are scoped to the accessible `Call context` region rather than relying on a page-wide exact-text match.
+- ECAPA UI assertions compare the raw value to the documented two-decimal presentation.
+- LIVE timer presentation subtracts the first event timestamp, so epoch evidence timestamps cannot render as multi-million-second durations.
+- `VITE_API_WS_URL` is supported independently from `VITE_API_BASE_URL` for production WSS routing.
 
-## Stress scenario
+## Required acceptance cases
 
-- Duration: 61.1 seconds
-- Frames produced/sent: 2,832 / 2,832
-- Drops: 0
-- Transport gaps: 0
-- Inferences observed: 25
-- Cleanup: PASS
-- Console errors: none
+DEMO is verified. JASH-005 controlled microphone E2E, JASH-006 live fusion E2E, the legacy controlled LIVE E2E, a 68.125-second LIVE soak, second-session cleanup, and local failure-mode checks passed. Hosted LIVE assertions remain **NOT VALIDATED YET** because provider authentication and public URLs are unavailable in this workspace.
 
-## Failure-path coverage
+## Failure-mode expectations
 
-Backend and ML unit/integration suites cover malformed VXAF input, finite-value validation, source gaps/overlap, canonicalization, scheduling bounds, duplicate ownership, session lifecycle, telemetry protection, profile isolation, missing/insufficient speaker evidence, model-unavailable handling, and reset/cleanup behavior. No new production failure was found.
+The code and tests cover malformed VXAF, sequence gaps/overlap, duplicate producer ownership, bounded queues, missing references, unavailable models, stale/out-of-order speaker evidence, disconnects, Stop, Reset, and lifecycle cleanup. Runtime soak evidence: 3,047 frames produced/sent, 0 drops, 0 transport gaps, 50 inference observations, and no browser console errors.
 
-## Limitations
+## Integrity statement
 
-The current repository does not expose every backend queue counter in the browser acceptance snapshot, and the separate T1/T2/T3 stage timestamps are not individually exposed. Those values are reported as unavailable rather than inferred.
+No fabricated LIVE model output, hosted URL, latency, FAR/FRR/EER, physical microphone claim, Indian-language claim, telecom claim, or blockchain claim is included in this report.

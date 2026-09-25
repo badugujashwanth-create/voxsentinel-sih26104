@@ -10,15 +10,17 @@ export const WS_ML_FAILURE = 1011;
 export class WebSocketRiskStreamSource implements RiskStreamSource {
   private readonly callId: string;
   private readonly baseUrl: string;
+  private readonly wsBaseUrl: string;
   private socket: WebSocket | undefined;
   private handlers: RiskStreamHandlers | undefined;
   private lastSequence = 0;
   private paused = false;
 
   /** Creates an adapter for one call and backend origin. */
-  public constructor(callId: string, baseUrl = getConfiguredBaseUrl()) {
+  public constructor(callId: string, baseUrl?: string, wsBaseUrl?: string) {
     this.callId = callId;
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl?.trim() || getConfiguredBaseUrl();
+    this.wsBaseUrl = wsBaseUrl?.trim() || (baseUrl ? this.baseUrl : getConfiguredWsBaseUrl());
   }
 
   /** Opens the backend stream and attaches validated message handlers. */
@@ -27,7 +29,7 @@ export class WebSocketRiskStreamSource implements RiskStreamSource {
     this.paused = false;
     this.handlers = handlers;
     this.emitStatus("CONNECTING");
-    this.socket = new WebSocket(buildStreamUrl(this.baseUrl, this.callId));
+    this.socket = new WebSocket(buildStreamUrl(this.wsBaseUrl, this.callId));
     this.socket.onopen = () => this.emitStatus("LIVE");
     this.socket.onmessage = (message) => this.handleMessage(message.data);
     this.socket.onerror = () => this.reportError(new Error("Risk stream connection failed"));
@@ -117,7 +119,12 @@ function buildStreamUrl(baseUrl: string, callId: string): string {
 
 /** Reads the optional Vite backend origin from environment configuration. */
 function getConfiguredBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL ?? window.location.origin;
+  return import.meta.env.VITE_API_BASE_URL?.trim() || window.location.origin;
+}
+
+/** Reads the optional backend WebSocket origin from environment configuration. */
+function getConfiguredWsBaseUrl(): string {
+  return import.meta.env.VITE_API_WS_URL?.trim() || getConfiguredBaseUrl();
 }
 
 /** Removes trailing slashes before appending the stream endpoint. */

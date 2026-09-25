@@ -21,6 +21,6 @@ Build a judge-ready SIH prototype capable of:
 
 ## Current Status
 
-**Repository bootstrap only**
+Core development is complete. The local controlled LIVE path loads AASIST and ECAPA, and the deterministic fallback is labeled `SIMULATED POLICY DEMONSTRATION`. Vercel/Render configuration is present in `vercel.json` and `render.yaml`; public deployment remains pending provider authentication and account setup.
 
-This repository currently contains project structure and collaboration documentation only. No application functionality has been implemented.
+Use `docs/demo/SIH_Final_Demo_Runbook.md` for the judge sequence and `scripts/pre_demo_check.ps1` before a local LIVE demonstration.

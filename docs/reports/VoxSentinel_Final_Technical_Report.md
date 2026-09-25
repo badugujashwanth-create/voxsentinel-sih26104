@@ -1,124 +1,65 @@
 # VoxSentinel Final Technical Report
 
-## 1. Executive Summary
+## Executive summary
 
-VoxSentinel is a frozen Smart India Hackathon prototype for real-time detection and prevention of voice-cloning impersonation attacks. It combines uncalibrated AASIST spoof evidence with uncalibrated ECAPA expected-speaker similarity and converts the two independent evidence dimensions into deterministic operational actions.
+VoxSentinel is a frozen SIH26104 prototype for detecting voice-cloning impersonation during a sensitive call. The implementation keeps voice authenticity and speaker identity as separate evidence streams, combines available evidence with deterministic temporal policy, and exposes a judge-facing action with explicit degraded states.
 
-## 2. Problem Statement
+This report describes the repository as stabilized on the deployment branch. Public Vercel/Render execution is **NOT VALIDATED YET** because this workspace has no authenticated Vercel or Render deployment client and no hosted service URLs. The deterministic DEMO path is a **SIMULATED POLICY DEMONSTRATION**, not model evidence.
 
-SIH26104 addresses voice-cloning impersonation. Speaker familiarity alone is insufficient: a clone of an enrolled speaker can preserve speaker characteristics while remaining synthetic.
+## Problem and design goals
 
-## 3. Design Goals
+SIH26104 concerns impersonation through AI-generated or cloned speech. Speaker similarity alone cannot establish authenticity: a clone of an enrolled speaker can match the speaker model. The design goals are real-time browser capture, bounded processing, explainable dual evidence, privacy-preserving ephemeral audio, deterministic policy, and honest uncertainty.
 
-The implemented goals are real-time browser ingestion, privacy-preserving ephemeral audio processing, explainable evidence, bounded resources, honest uncertainty, and operational intervention.
+## Architecture
 
-## 4. System Architecture
+```text
+Browser getUserMedia
+  -> AudioContext / AudioWorklet
+  -> VXAF float32 transport
+  -> backend audio WebSocket
+  -> StreamingAudioCanonicalizer
+  -> mono 16 kHz float32
+  -> exact 64,600-sample AASIST windows
+  -> ECAPA speaker probes when a reference exists
+  -> deterministic temporal fusion
+  -> risk/action
+  -> backend risk WebSocket
+  -> React console
+```
 
-The verified path is:
+The backend is Torch-free. The ML service owns AASIST and SpeechBrain ECAPA. DEMO mode uses deterministic scenario fixtures and never silently substitutes for LIVE mode.
 
-`getUserMedia → AudioContext → AudioWorklet → VXAF binary transport → backend audio WebSocket → StreamingAudioCanonicalizer → mono 16 kHz float32 → bounded call-scoped scheduling → ML service → AASIST + ECAPA → deterministic temporal fusion → risk/action → risk WebSocket → React forensic dashboard`.
+## Browser and audio pipeline
 
-The backend remains Torch-free. AASIST and ECAPA execute in the separate loopback ML service.
+LIVE requests microphone permission only after an explicit Start action. The AudioWorklet feeds VXAF frames to one bounded audio producer. The backend validates sequence, sample format, finite values, and ownership; downmixes and resamples statefully to mono 16 kHz; then schedules AASIST windows of 64,600 samples (4.0375 seconds) with bounded pending work. Stop and Reset release tracks, AudioContext, worklet, WebSockets, and call-scoped queues.
 
-## 5. Browser Audio Capture
+## Models and evidence
 
-Microphone permission is requested only after explicit LIVE analysis start. The AudioWorklet accumulates render-quantum samples; transport owns VXAF sequence/header generation and backpressure. Stop and Reset close the worklet, AudioContext, sockets, and media tracks.
+- AASIST uses the pinned official checkpoint with required SHA-256 `51d2d9cf0738172f61e2a384ec50a54a55363240f67c971ed55a92435bc1a1c0`. Its output is uncalibrated spoof evidence, not a probability of fraud.
+- ECAPA uses SpeechBrain `spkrec-ecapa-voxceleb` revision `0f99f2d0ebe89ac095bcc5903c4dd8f72b367286`, 192-dimensional normalized embeddings, cosine similarity, and the 0.55 engineering threshold.
+- A missing model, reference, or sufficient audio is represented as unavailable/indeterminate. It is never mapped to safe or attack evidence.
+- Replay, prosody, and context signals remain N/A where unsupported.
 
-## 6. VXAF Protocol
+## Privacy and security
 
-VXAF uses a 32-byte little-endian header: magic, version, header length, flags, sequence, first source sample frame, sample count, and payload length. Payload samples are float32 little-endian. The backend validates channel/rate/count/payload consistency, finite values, overlap/replay, and sequence gaps.
+Raw live PCM is not persisted, logged, or committed. Reference PCM is converted to an embedding and discarded by the profile flow. Model assets are fetched and checksum-verified at deployment build time and are gitignored. Production CORS is explicit through `VOXSENTINEL_CORS_ORIGINS`; frontend production uses HTTPS and WSS origins from environment variables.
 
-## 7. Canonical Audio Pipeline
+## Evaluation
 
-The backend downmixes before resampling and maintains one stateful `soxr` stream per producer. Output is mono 16 kHz float32. The source-segment ledger preserves conservative source/canonical correlation metadata.
+The committed evaluation artifacts record controlled exploratory tests, not production benchmarks:
 
-## 8. AASIST
+- AASIST: N=80, 40 bona fide and 40 Piper synthetic, accuracy 83.75%, F1 0.8267, EER 0.125.
+- ECAPA ordinary human verification: 74 genuine and 296 human impostor trials, threshold 0.55, FAR 0%, FRR 0%, EER 0% on that controlled set only.
+- Separate adversarial extension: 72 synthetic/attack trials, including 12 target-voice clones; 12/12 crossed the ECAPA threshold. Clone trials are not counted in FAR.
 
-The runtime uses `AASIST/AASIST.pth@ASVspoof2019-LA`, checkpoint SHA-256 `51d2d9cf0738172f61e2a384ec50a54a55363240f67c971ed55a92435bc1a1c0`. It consumes exactly 64,600 samples at 16 kHz, approximately 4.0375 seconds. The result is **uncalibrated spoof evidence**, not a probability.
+## Deployment
 
-The streaming scheduler uses overlapping windows with bounded pending work. Missing or unavailable model evidence is not silently replaced with demo data.
+`render.yaml` defines a Render ML service and backend. ML assets are retrieved by checksum-verifying setup scripts; the ML health endpoint can require both AASIST and ECAPA with `VOXSENTINEL_REQUIRE_SPEAKER_MODEL=true`. The backend binds `0.0.0.0:$PORT`, uses `VOXSENTINEL_ML_SERVICE_URL`, and allows only configured origins. `vercel.json` builds `frontend` and rewrites SPA routes to `index.html`.
 
-## 9. ECAPA
+## Limitations
 
-The runtime uses SpeechBrain `spkrec-ecapa-voxceleb`, revision `0f99f2d0ebe89ac095bcc5903c4dd8f72b367286`, 16 kHz audio, and 192-dimensional normalized embeddings. Verification uses cosine similarity and the 0.55 engineering threshold. Profiles retain derived embeddings and provenance, not live reference PCM. ECAPA output is **uncalibrated speaker similarity**, not a probability.
+There is no broad Indian-accent validation, multilingual validation, telecom codec benchmark, replay model, prosody model, context model, population calibration, or blockchain implementation. The AASIST set is small and exploratory; the ECAPA set is controlled clean speech. A physical microphone, hosted runtime, and hosted latency are **NOT VALIDATED YET** in this workspace.
 
-## 10. Why Dual Evidence
+## Judge procedure
 
-The controlled ECAPA evaluation contained 74 genuine, 296 human-impostor, and 12 target-voice clone trials. The 12 clone samples crossed the speaker-similarity threshold, demonstrating why speaker identity alone cannot establish authenticity.
-
-## 11. Temporal Fusion
-
-| AASIST condition | ECAPA condition | Fused state/action |
-|---|---|---|
-| Low/normal | Consistent | `NORMAL` / `MONITOR` |
-| Low/normal | Inconsistent | `IDENTITY_REVIEW` / `VERIFY_IDENTITY` |
-| Elevated | Consistent | `AUTHENTICITY_REVIEW` / `REQUIRE_CALLBACK` |
-| Elevated | Inconsistent | `HIGH_RISK_REVIEW` / `HOLD_SENSITIVE_ACTION` |
-| Available spoof, missing speaker | Unavailable | Authenticity-driven review; speaker remains not evaluated |
-| Missing spoof, available speaker | Unavailable | Identity review/degraded policy; spoof remains not evaluated |
-| Both unavailable/indeterminate | Unavailable | `INDETERMINATE` / conservative handling |
-
-The implementation keeps evidence dimensions separate, uses source/window correlation and bounded staleness, persists promotions/demotions deterministically, clears histories on Reset/new call, and rejects out-of-order speaker evidence from replacing newer aligned evidence.
-
-## 12. Real-Time Performance
-
-Fresh controlled LIVE timing produced the first fused event 4,572.2 ms after MIC STREAMING. The nominal AASIST audio window is 4.0375 seconds. Fifty observations produced a 513.5 ms mean update interval, 502.8 ms p50, and 571.9 ms p95. Separate canonical-availability, AASIST-only, and ECAPA-only timestamps are not exposed by the current acceptance snapshot.
-
-## 13. Frontend
-
-LIVE and DEMO remain distinct. LIVE presents model-backed AASIST/ECAPA evidence, fusion state, operational action, privacy status, and honest N/A values for Replay, Prosody, and Context. DEMO retains deterministic scenario playback.
-
-## 14. Privacy and Security
-
-Live raw audio is not persisted, logged, downloaded, or stored in a database. Reference PCM is converted to an embedding and discarded by the profile flow. Acceptance telemetry is bounded metadata and token-gated. Model files, secrets, and audio are not committed.
-
-## 15. Failure and Degraded Modes
-
-The system explicitly handles ML unavailability, model mismatch, missing reference, insufficient audio, disconnects, duplicate producers, reset/stop races, and stale evidence. Missing evidence is neither treated as safe evidence nor as confirmed attack, and LIVE does not silently fall back to DEMO values.
-
-## 16. Evaluation
-
-AASIST: N=80 exploratory controlled samples, 40 LibriSpeech bona fide and 40 Piper synthetic; accuracy 83.75%, F1 0.8267, EER 0.1250. Training-overlap status is not established.
-
-ECAPA: 74 genuine and 296 impostor trials yielded FAR/FRR/EER of 0% on the small controlled human set at the engineering threshold; 12/12 target clones passed speaker similarity. These are controlled prototype observations, not population benchmarks.
-
-## 17. Deployment Architecture
-
-The supported deployment is local loopback: ML on port 8010, backend on port 8000, and Vite frontend on port 5173. No public deployment configuration is present.
-
-## 18. Deployment Runbook
-
-See `docs/deployment/VoxSentinel_Deployment_Runbook.md`.
-
-## 19. Testing
-
-Fresh verification: 147 backend tests passed; 220 ML tests passed with 14 prepared-evaluation skips; 203 ML fast tests passed; 65 frontend tests passed; lint and build passed; deterministic DEMO E2E passed; controlled browser LIVE runtime and 60-second stress path passed. One stale E2E assertion needs rounding-aware maintenance.
-
-## 20. Known Limitations
-
-- No broad Indian-accent validation.
-- No multilingual validation.
-- No telephony codec benchmark.
-- No replay model.
-- No prosody model.
-- No context model.
-- Small exploratory AASIST dataset.
-- Controlled ECAPA evaluation set.
-- Engineering thresholds are not population-calibrated.
-- Blockchain is not implemented.
-
-## 21. Blockchain / Audit Position
-
-Blockchain is not required for inference. Current capability is an evidence pipeline with audit-ready metadata. Optional future tamper-evident anchoring could independently prove that incident evidence and model-version records were not altered after the decision.
-
-## 22. SIH Demo Procedure
-
-Start ML, backend in ML mode, and frontend. Open the dashboard, select LIVE, start analysis, grant microphone permission, run the controlled or physical microphone flow, show AASIST and ECAPA evidence, explain the fused action, show unsupported signals as N/A, and Stop. DEMO mode remains available for deterministic policy demonstration and must be labeled simulated.
-
-## 23. Future Work
-
-Future work is limited to broader multilingual/telephony evaluation, replay and prosody models, context intelligence, calibration, optional external anchoring, and production-scale deployment. These are not required core engineering tasks for this frozen SIH build.
-
-## 24. Conclusion
-
-VoxSentinel provides a reproducible, privacy-preserving browser-to-model-to-action prototype that treats speaker identity and voice authenticity as separate evidence questions and exposes their operational consequence honestly.
+Primary path, only after hosted acceptance is verified: open the Vercel URL, select LIVE, Start, grant microphone permission, wait for STREAMING/audio_ready, show real AASIST and ECAPA evidence, explain fusion/action, Stop, Reset, and repeat. Local fallback is the same flow against verified local services. Final fallback is DEMO, explicitly introduced as “SIMULATED POLICY DEMONSTRATION; these values are deterministic policy fixtures, not live model output.”

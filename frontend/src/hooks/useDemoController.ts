@@ -119,9 +119,11 @@ function createSource(scenarioId: ScenarioId | null, liveMode: boolean, onMicrop
   if (!liveMode) return new MockRiskStreamSource(scenarioId);
   const scenario = SCENARIOS[scenarioId];
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
-  const microphone = new MicrophoneSession({ baseUrl }, onMicrophoneState);
+  const wsBaseUrl = import.meta.env.VITE_API_WS_URL;
+  const microphone = new MicrophoneSession({ baseUrl, wsBaseUrl }, onMicrophoneState);
   return new LiveCallRiskStreamSource({
     baseUrl,
+    wsBaseUrl,
     request: {
       claimed_identity: scenario.caller,
       scenario: scenario.id,

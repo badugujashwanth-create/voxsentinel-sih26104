@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: voxsentinel-ml
+    runtime: python
+    rootDir: ml
+    plan: starter
+    buildCommand: >-
+      python -m pip install --upgrade pip &&
+      python -m pip install --index-url https://download.pytorch.org/whl/cpu
+      torch==2.9.1 torchaudio==2.9.1 &&
+      python -m pip install -r requirements.render.txt &&
+      python scripts/setup_aasist.py &&
+      python scripts/setup_ecapa.py
+    startCommand: uvicorn runtime.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: VOXSENTINEL_REQUIRE_SPEAKER_MODEL
+        value: "true"
+
+  - type: web
+    name: voxsentinel-backend
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: VOXSENTINEL_RISK_PROVIDER
+        value: ml
+      - key: VOXSENTINEL_ML_SERVICE_URL
+        sync: false
+      - key: VOXSENTINEL_CORS_ORIGINS
+        sync: false

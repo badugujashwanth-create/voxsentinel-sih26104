@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, HTTPException, status
 
 from ml.runtime.contracts import HealthResponse, SpeakerEmbedRequest, SpeakerEmbedResponse, SpeakerVerifyRequest, SpeakerVerifyResponse, SpoofInferenceRequest, SpoofInferenceResponse
@@ -32,7 +34,10 @@ def create_app(runtime: AASISTInferenceRuntime | None = None) -> FastAPI:
     async def health() -> HealthResponse:
         """Returns model readiness without fabricating unavailable evidence."""
         result = active_runtime.health()
-        if not result.ready:
+        requires_speaker = os.getenv("VOXSENTINEL_REQUIRE_SPEAKER_MODEL", "false").strip().lower() == "true"
+        if not result.ready or (requires_speaker and not result.speaker_ready):
+            if requires_speaker and result.ready and not result.speaker_ready:
+                result = result.model_copy(update={"ready": False, "reason": "ECAPA speaker model is not initialized"})
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=result.model_dump(mode="json"))
         return result
 
